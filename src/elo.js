@@ -96,16 +96,19 @@ export function formatLevel(level, style, prefix = DEFAULT_EMOTE_PREFIX) {
   return style === 'letters' ? `L${level}` : `${prefix}${level}`;
 }
 
-/** "PETSEN LVL10: 2347 elo" / "PETSEN L10 2347elo" */
+/** "PETSEN LVL10 2347 elo" / "PETSEN L10 2347elo" */
 export function formatPlayerElo({ nickname, elo, level }, style, prefix = DEFAULT_EMOTE_PREFIX) {
   const shown = level ?? levelFor(elo);
   const label = formatLevel(shown, style, prefix);
 
   if (!Number.isFinite(elo)) return `${nickname} ${label}`.trim();
 
+  // Ingen tegnsætning klistret på emote-navnet. 7TV genkender kun en emote
+  // der står som et selvstændigt ord, så "LVL7:" bliver aldrig til et ikon —
+  // seeren ser den rå tekst i stedet.
   return style === 'letters'
     ? `${nickname} ${label} ${elo}elo`
-    : `${nickname} ${label}: ${elo} elo`;
+    : `${nickname} ${label} ${elo} elo`;
 }
 
 /** "+47" / "-23" / "±0" — fortegnet skal altid med. */

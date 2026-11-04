@@ -49,14 +49,14 @@ test('formatLevel følger den valgte stil', () => {
 
 test('formatPlayerElo skriver begge stilarter', () => {
   const player = { nickname: 'PETSEN', elo: 2347, level: 10 };
-  assert.equal(formatPlayerElo(player, 'emotes'), 'PETSEN LVL10: 2347 elo');
+  assert.equal(formatPlayerElo(player, 'emotes'), 'PETSEN LVL10 2347 elo');
   assert.equal(formatPlayerElo(player, 'letters'), 'PETSEN L10 2347elo');
 });
 
 test('formatPlayerElo udleder level når det mangler', () => {
   assert.equal(
     formatPlayerElo({ nickname: 'X', elo: 1800 }, 'emotes'),
-    'X LVL9: 1800 elo',
+    'X LVL9 1800 elo',
   );
 });
 
@@ -64,4 +64,23 @@ test('formatEloDelta har altid fortegn', () => {
   assert.equal(formatEloDelta(25), '+25');
   assert.equal(formatEloDelta(-25), '-25');
   assert.equal(formatEloDelta(0), '±0');
+});
+
+/**
+ * 7TV genkender kun en emote der står som et selvstændigt ord. Et kolon eller
+ * komma klistret på navnet gør at seeren ser den rå tekst "LVL7:" i stedet for
+ * ikonet — hvilket var præcis fejlen i den første version.
+ */
+test('intet tegn klistrer sig til emote-navnet', () => {
+  const samples = [
+    formatPlayerElo({ nickname: 'PETSEN', elo: 2347, level: 10 }, 'emotes'),
+    formatPlayerElo({ nickname: 'PETSEN', elo: 1416, level: 7 }, 'emotes'),
+    formatPlayerElo({ nickname: 'PETSEN', elo: null, level: 3 }, 'emotes'),
+  ];
+
+  for (const message of samples) {
+    // Efter LVL<tal> må der kun komme et mellemrum eller slutningen af linjen.
+    assert.match(message, /LVL\d+(\s|$)/, message);
+    assert.doesNotMatch(message, /LVL\d+[^\s\d]/, `tegn klistret på emoten: ${message}`);
+  }
 });

@@ -70,13 +70,13 @@ Tallene i parentes er linjer i LoL-botten.
 
 | LoL | CS | Svar (udkast) |
 |---|---|---|
-| `!rank` | `!rank [nick]` | `PETSEN LVL10: 2347 ELO` — Challenger-spillere får også `(Rank#412)` |
+| `!rank` | `!rank [nick]` | `PETSEN LVL10 2347 ELO` — Challenger-spillere får også `(Rank#412)` |
 | `!ranks` | `!ranks` | Kanalens liste, nummereret, højeste elo først |
 | `!gains` / `!session` | samme | `PETSEN: 3W 2L (+47 elo) 🟩🟩🟥🟩🟥` for i dag |
-| `!nextrank` | `!nextrank [nick]` | `PETSEN LVL9: 1920 elo │ mangler 81 elo til LVL10` |
+| `!nextrank` | `!nextrank [nick]` | `PETSEN LVL9 1920 elo │ mangler 81 elo til LVL10` |
 | `!lastgame` | `!lastgame [nick]` | `PETSEN │ Mirage 13-9 W │ 24-17-6 │ 1.41 K/D │ 94.2 ADR │ 48% HS` |
 | `!lobby` | `!lobby [nick]` | Gennemsnitselo i igangværende kamp, pr. hold |
-| `!chal` / `!cutoff` | `!top` | `PETSEN LVL10: 2347 elo │ DK #12 │ EU #418` — land og region, ikke cutoffs |
+| `!chal` / `!cutoff` | `!top` | `PETSEN LVL10 2347 elo │ DK #12 │ EU #418` — land og region, ikke cutoffs |
 | — | `!maps [nick]` | Ny: bedste og dårligste map efter winrate. FACEIT giver segmenter pr. map gratis |
 | — | `!esea [nick]` | Ny: `PETSEN │ ESEA Advanced Group C │ Nordic Noobs 7-3 │ #4`. Holdliga, ikke personlig stige |
 
