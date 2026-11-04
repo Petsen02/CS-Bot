@@ -29,6 +29,7 @@ import {
   findNextMatch,
   parseMatchId,
   describeMatch,
+  describeSchedule,
 } from './esea.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
@@ -593,6 +594,26 @@ export async function commandEseaDebug({ channel, argument: raw }) {
     parts.push(info.factions.join(' · ') || 'ingen hold');
 
     return parts.join(SEP);
+  }
+
+  // "matches <nick>": hvad kampprogram-ruten svarer for spillerens
+  // turneringer. Det er dér !næsteesea kan fejle uden at det ses.
+  const schedule = /^matches\s+/i.test(argument ?? '');
+  if (schedule) {
+    const ref = parsePlayerRef(argument.replace(/^matches\s+/i, ''));
+    if (!ref) return 'Brug: !csbotesea matches <nick>';
+
+    const player = await resolvePlayer(ref);
+    const competitions = (await recentCompetitions(player.playerId))
+      .filter((c) => c.id && c.type === 'championship');
+
+    if (competitions.length === 0) return `${player.nickname}: ingen turneringer`;
+
+    const lines = [];
+    for (const competition of competitions.slice(0, 2)) {
+      lines.push(`${competition.name}: ${await describeSchedule(competition)}`);
+    }
+    return lines.join(SEP);
   }
 
   // Et nick i stedet for et hold-id: vis hvilke turneringer spillerens egne

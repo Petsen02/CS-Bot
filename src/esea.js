@@ -460,8 +460,9 @@ export function readScheduledMatch(item) {
  * Returnerer den tidligste, så svaret er "hvornår spiller de næste gang" og
  * ikke en vilkårlig kamp fra programmet.
  */
-export async function findNextMatch(teamIds, competitions) {
+export async function findNextMatch(teamIds, competitions, now = Date.now()) {
   const { getChampionshipMatches } = await import('./faceit.js');
+  const { logger } = await import('./logger.js');
 
   const wanted = new Set(teamIds.filter(Boolean));
   if (wanted.size === 0) return null;
@@ -469,24 +470,67 @@ export async function findNextMatch(teamIds, competitions) {
   let best = null;
 
   for (const competition of competitions) {
-    let payload;
-    try {
-      payload = await getChampionshipMatches(competition.id, { type: 'upcoming', limit: 20 });
-    } catch {
-      continue;
-    }
-
-    for (const item of payload?.items ?? []) {
-      const match = readScheduledMatch(item);
-      if (!match?.at || !match.teamIds.some((id) => wanted.has(id))) continue;
-
-      if (!best || match.at < best.at) {
-        best = { ...match, competition: competition.name, ...parseCompetitionName(competition.name) };
+    // "upcoming" er det rigtige spørgsmål, men hvis API'et ikke kender den
+    // værdi — eller ikke regner en SCHEDULED kamp for kommende — henter "all"
+    // det samme og filtreres her. En kamp der står på hjemmesiden skal ikke
+    // mangle fordi ét parameternavn ikke passer.
+    for (const type of ['upcoming', 'all']) {
+      let payload;
+      try {
+        payload = await getChampionshipMatches(competition.id, { type, limit: 50 });
+      } catch (error) {
+        // Tidligere blev dette slugt i stilhed, og så lignede en afvist rute
+        // en turnering uden kampe.
+        logger.warn(`kampprogram (${type}) for ${competition.name}: ${error.message}`);
+        continue;
       }
+
+      let foundHere = false;
+
+      for (const item of payload?.items ?? []) {
+        const match = readScheduledMatch(item);
+        if (!match?.at || match.at <= now) continue;
+        if (DEAD.has(match.status)) continue;
+        if (!match.teamIds.some((id) => wanted.has(id))) continue;
+
+        foundHere = true;
+        if (!best || match.at < best.at) {
+          best = {
+            ...match,
+            competition: competition.name,
+            ...parseCompetitionName(competition.name),
+          };
+        }
+      }
+
+      // Gav "upcoming" noget, er der ingen grund til også at hente "all".
+      if (foundHere) break;
     }
   }
 
   return best;
+}
+
+/** Hvad kampprogram-ruten svarer, pr. type. Til fejlsøgning fra chatten. */
+export async function describeSchedule(competition) {
+  const { getChampionshipMatches } = await import('./faceit.js');
+  const out = [];
+
+  for (const type of ['upcoming', 'ongoing', 'all']) {
+    try {
+      const payload = await getChampionshipMatches(competition.id, { type, limit: 20 });
+      const items = payload?.items ?? [];
+      const timed = items.filter((item) => {
+        const match = readScheduledMatch(item);
+        return match?.at && !DEAD.has(match.status);
+      });
+      out.push(`${type} ${items.length}${timed.length ? ` (${timed.length} m. tid)` : ''}`);
+    } catch (error) {
+      out.push(`${type} ${error.status ?? 'fejl'}`);
+    }
+  }
+
+  return out.join(' ');
 }
 
 /** Læser et match-id ud af et rå id eller et faceit.com/...room/...-link. */
