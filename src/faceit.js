@@ -145,6 +145,42 @@ export function readPlayer(payload) {
   };
 }
 
+/**
+ * Vælger den rigtige blandt søgeresultater.
+ *
+ * Kun et eksakt match bortset fra versaler accepteres. FACEIT's søgning er
+ * ordentligt fuzzy — "vigg0" giver også "vigg0r" og "Viggo" — og at tage det
+ * første resultat ville svare om en tilfældig anden spiller, hvilket er værre
+ * end at sige at nicket ikke findes.
+ */
+export function pickSearchMatch(items, nickname) {
+  if (!Array.isArray(items)) return null;
+
+  const wanted = String(nickname ?? '').trim().toLowerCase();
+  if (!wanted) return null;
+
+  return items.find((item) => String(item?.nickname ?? '').toLowerCase() === wanted) ?? null;
+}
+
+/**
+ * Finder en spiller via søgningen i stedet for et direkte opslag.
+ *
+ * MÅLT: /players?nickname= er VERSALFØLSOMT. "vigg0" findes, "Vigg0" giver 404.
+ * Seere skriver navne som de husker dem, ikke som de er stavet, så et direkte
+ * opslag alene ville fejle konstant i en chat.
+ */
+export async function searchPlayerByNickname(nickname) {
+  const payload = await request('/search/players', {
+    params: { nickname, game: config.faceit.game, limit: 20 },
+  });
+
+  const match = pickSearchMatch(payload?.items, nickname);
+  if (!match?.player_id) return null;
+
+  // Søgeresultater er magre og mangler elo, så den fulde profil hentes.
+  return refreshPlayer(match.player_id);
+}
+
 /** Slår et nick op. Resultatet er identiteten, ikke elo — den caches kort. */
 export async function getPlayerByNickname(nickname) {
   const key = `nick:${nickname.toLowerCase()}`;
@@ -152,11 +188,22 @@ export async function getPlayerByNickname(nickname) {
   const cached = identityCache.get(key);
   if (cached) return refreshPlayer(cached.playerId);
 
-  const payload = await request('/players', {
-    params: { nickname, game: config.faceit.game },
-  });
+  let player = null;
 
-  const player = readPlayer(payload);
+  try {
+    player = readPlayer(await request('/players', {
+      params: { nickname, game: config.faceit.game },
+    }));
+  } catch (error) {
+    // Et 404 her betyder bare "ikke stavet præcis sådan" — søgningen kan
+    // stadig finde den. Alt andet er en rigtig fejl og skal op.
+    if (error.kind !== 'not_found') throw error;
+  }
+
+  if (!player?.playerId) {
+    player = await searchPlayerByNickname(nickname);
+  }
+
   if (!player?.playerId) throw new FaceitError('not_found', 'Not found', 404);
 
   identityCache.set(key, { playerId: player.playerId });

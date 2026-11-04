@@ -148,3 +148,35 @@ test('readMatchStats returnerer null når spilleren ikke er i svaret', () => {
   assert.equal(readMatchStats({}, 'me'), null);
   assert.equal(readMatchStats(null, 'me'), null);
 });
+
+/**
+ * MÅLT mod det rigtige API: /players?nickname= er versalfølsomt. "vigg0"
+ * findes, "Vigg0" giver 404. Seere skriver navne som de husker dem, så
+ * opslaget falder tilbage til søgningen — men kun på et eksakt match.
+ */
+test('pickSearchMatch tager kun et match der er identisk bortset fra versaler', async () => {
+  const { pickSearchMatch } = await import('../src/faceit.js');
+
+  const items = [
+    { player_id: '1', nickname: 'vigg0r' },
+    { player_id: '2', nickname: 'Vigg0' },
+    { player_id: '3', nickname: 'viggo' },
+  ];
+
+  assert.equal(pickSearchMatch(items, 'vigg0').player_id, '2');
+  assert.equal(pickSearchMatch(items, 'VIGG0').player_id, '2');
+  assert.equal(pickSearchMatch(items, 'viggo').player_id, '3');
+});
+
+test('pickSearchMatch afviser et fuzzy resultat frem for at svare forkert', async () => {
+  const { pickSearchMatch } = await import('../src/faceit.js');
+
+  // FACEIT's søgning er fuzzy. Det første resultat er ikke nødvendigvis den
+  // spiller seeren spurgte om, og et forkert svar er værre end intet.
+  const items = [{ player_id: '1', nickname: 'vigg0r' }, { player_id: '2', nickname: 'vigg00' }];
+
+  assert.equal(pickSearchMatch(items, 'vigg0'), null);
+  assert.equal(pickSearchMatch([], 'vigg0'), null);
+  assert.equal(pickSearchMatch(null, 'vigg0'), null);
+  assert.equal(pickSearchMatch(items, ''), null);
+});

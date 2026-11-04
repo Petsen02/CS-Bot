@@ -44,9 +44,9 @@ land), elo→level-tabellen, kamphistorik, kampdetaljer, al kampstatistik til
 
 **Virker ikke:**
 
-- **ESEA.** `/leagues/{id}` svarer 404 på liga-id'et fra den offentlige URL.
-  `npm run probe-esea` prøver alternativerne af. Indtil der er fundet en vej,
-  er `!esea` ikke funktionsdygtig.
+- **ESEA.** Alle `/leagues/*`-ruter svarer 404, og der er ingen championships
+  med "esea" i navnet blandt 400+ gennemsøgte. ESEA ser ikke ud til at være i
+  Data API'et. `!esea` er ikke funktionsdygtig og bør ikke slås til.
 - **FACEIT Rating og Round Swing** er ikke i Data API'et — se nedenfor.
 
 **Uafklaret:** om en placering i `!top` og `!rank` er 1-indekseret. Den eneste
@@ -75,6 +75,12 @@ betjene flere streamere uden at de ser hinandens spillere.
 
 Alle kommandoer tager et FACEIT-nick, et SteamID64 eller et link til en
 Steam- eller FACEIT-profil. Uden argument svarer de om kanalens main.
+
+Nicket behøver ikke ramme store og små bogstaver. FACEIT's eget opslag er
+versalfølsomt — `vigg0` findes, `Vigg0` giver 404 — så botten falder tilbage
+til søgningen og tager det resultat der er identisk bortset fra versaler.
+Kun et eksakt match: søgningen er fuzzy, og at svare om en tilfældig anden
+spiller ville være værre end at sige at nicket ikke findes.
 
 ### Hvorfor `!top` og ikke `!chal`
 

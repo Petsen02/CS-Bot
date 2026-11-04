@@ -165,10 +165,27 @@ async function run() {
   }
 
   if (playerId) {
-    console.log('\n--- spor 4: spillerens egne hold og turneringer ---');
-    await show('players/{id}/teams', `/players/${playerId}/teams`);
-    await show('players/{id}/tournaments', `/players/${playerId}/tournaments`);
-    await show('players/{id}/hubs', `/players/${playerId}/hubs`, { limit: 5 });
+    console.log('\n--- spor 4: spillerens egne hold, turneringer og hubs ---');
+    console.log('    (ESEA kan stå her, selv om den ikke er en liga i API\'et)');
+
+    for (const [label, path, params] of [
+      ['teams', `/players/${playerId}/teams`, { limit: 20 }],
+      ['tournaments', `/players/${playerId}/tournaments`, { limit: 30 }],
+      ['hubs', `/players/${playerId}/hubs`, { limit: 20 }],
+    ]) {
+      const body = await show(`players/{id}/${label}`, path, params);
+      const items = body?.items ?? [];
+      if (items.length === 0) continue;
+
+      console.log(`         felter: ${Object.keys(items[0]).join(', ')}`);
+      // Navnene er hele pointen: er ESEA her, står det i et af dem.
+      for (const item of items) {
+        const name = item.name ?? item.nickname ?? item.team_name ?? '(uden navn)';
+        const id = item.team_id ?? item.competition_id ?? item.hub_id ?? item.id ?? '';
+        const hit = /esea/i.test(JSON.stringify(item)) ? '   <<< ESEA' : '';
+        console.log(`           ${name}  ${id}${hit}`);
+      }
+    }
   }
 
   console.log('\nFærdig. Send hele output\'et videre.');
