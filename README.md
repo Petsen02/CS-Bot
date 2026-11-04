@@ -162,28 +162,29 @@ efter mønsteret `ESEA League EU Advanced S55 Qualifier` og fandt kun 59 af de
 543 — 460 har slet ingen sæson i navnet, og den sæson der faktisk kørte var
 ikke blandt dem. Botten svarede derfor om S55 længe efter den var slut.
 
-**Den kørende sæson er ikke i Data API'et.** Målt ad tre veje: organizerens
-championships giver 542 turneringer og ingen igangværende, selv med
-`type=ongoing` og `type=upcoming`; `/teams/{id}/tournaments` giver nul;
-`/teams/{id}/championships` og `/leagues` svarer 404. `!esea` kan derfor kun
-nå afsluttede sæsoner gennem det officielle API.
+**Den kørende sæson findes gennem spillerens kampe.** Det lyder omvejet, og
+det er det, men det er den eneste officielle kilde. Målt:
 
-`!csbotesea web <hold>` prøver FACEIT's interne web-API — det deres eget site
-kører på. Det er **udokumenteret**: ingen versionering, ingen varsel ved
-ændringer. Alt derfra ligger i `src/internal.js`, er begrænset til FACEIT's
-egne værter over https, og fanger sine egne fejl, så en ændret rute kun koster
-`!esea` og aldrig resten af botten.
+- Organizerens championships: 542 turneringer, **ingen igangværende** — heller
+  ikke med `type=ongoing` eller `type=upcoming`
+- `/teams/{id}/tournaments`: **nul**
+- `/teams/{id}/championships` og `/leagues`: **404**
 
-Turneringerne hentes i flere omgange — `type=ongoing`, `type=upcoming` og
-uden parameter. Uden `type` returnerer endpointet kun afsluttede, og botten
-svarede derfor om en sæson der var slut, selvom holdet spillede. Afviser
-API'et en variant, springes den over frem for at koste hele listen.
+Men hver FACEIT-kamp hører til en turnering, og en spiller der er aktiv i
+ligaen bærer den i sin historik. `!esea` henter derfor spillerens seneste
+kampe, tager de turneringer der er af typen `championship`, og leder efter
+holdet i deres stillinger. Findes holdet ikke der, falder den tilbage til
+organizerens historik, og svaret mærkes `afsluttet`.
 
-Nu rangeres turneringerne: igangværende i kanalens region først, så
-igangværende andre steder, så de senest startede afsluttede. Navnet bruges kun
-som etiket i svaret, og kan det ikke læses, vises turneringens eget navn.
-Er sæsonen slut, står der `afsluttet` til sidst, så historik ikke forveksles
-med en igangværende stilling.
+**Navnene matches ikke på en fast rækkefølge.** ESEA navngiver ikke
+konsekvent — historikken hedder `ESEA League EU Advanced S55 Qualifier`, den
+kørende sæson `S59 EU Main B - Regular Season`. Sæson, region og division
+findes hver for sig, hvor de end står, og det der mangler bliver null. Et
+strikt mønster var netop grunden til at den kørende sæson aldrig blev
+genkendt.
+
+FACEIT's interne web-API blev prøvet og forkastet: alle seks kandidatruter
+svarede 404, og den officielle vej virker.
 
 **Placeringen er udledt, ikke læst.** API'ets `position` er 0 på hver eneste
 række, også på føreren med flest point, så stillingen sorteres efter point og
@@ -211,7 +212,6 @@ andre bots i samme chat; det kan skiftes med `ADMIN_PREFIX` i `.env`.
 | `!csbotcountry dk` | mod | Sætter landet `!top` måler mod |
 | `!csbotesea` | mod | Diagnose: hvad botten ser hos ESEA, og hvor den leder |
 | `!csbotesea <hold eller nick>` | mod | Prøver holdets ruter, eller viser turneringerne bag en spillers seneste kampe |
-| `!csbotesea web <hold>` | mod | Prøver FACEIT's **interne** web-API — udokumenteret, se nedenfor |
 
 ## Level og elo
 

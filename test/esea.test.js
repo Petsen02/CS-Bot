@@ -165,31 +165,50 @@ test('parseTeamId afviser alt der ikke er et id', async () => {
 });
 
 /**
- * Det interne web-API er udokumenteret og tages kun i brug fordi Data API'et
- * ikke udstiller den kørende ESEA-sæson. Værtsbegrænsningen findes så en
- * chatkommando aldrig kan blive til et åbent hent-hvad-som-helst.
+ * ESEA navngiver ikke konsekvent. Begge disse er set i praksis, og det var et
+ * strikt mønster der gjorde at den kørende sæson aldrig blev genkendt.
  */
-test('fetchInternal afviser alt der ikke er FACEIT over https', async () => {
-  const { fetchInternal } = await import('../src/internal.js');
+test('parseCompetitionName læser begge navneformer', async () => {
+  const { parseCompetitionName } = await import('../src/esea.js');
 
-  for (const url of [
-    'https://example.com/api/x',
-    'http://www.faceit.com/api/x',
-    'https://evil.faceit.com.attacker.net/api/x',
-    'file:///etc/passwd',
-    'ikke en url',
-  ]) {
-    const { status } = await fetchInternal(url);
-    assert.equal(status, 0, `måtte ikke hentes: ${url}`);
-  }
+  // Den kørende sæson, fra en rigtig kamp i historikken.
+  assert.deepEqual(parseCompetitionName('S59 EU Main B - Regular Season'), {
+    season: 59,
+    region: 'EU',
+    division: 'Main',
+  });
+
+  // Historikken under organizeren — helt anden rækkefølge.
+  assert.deepEqual(parseCompetitionName('ESEA League EU Advanced S55 Qualifier'), {
+    season: 55,
+    region: 'EU',
+    division: 'Advanced',
+  });
 });
 
-test('describeBody viser formen uden at dumpe hele svaret', async () => {
-  const { describeBody } = await import('../src/internal.js');
+test('parseCompetitionName giver null for det den ikke finder', async () => {
+  const { parseCompetitionName } = await import('../src/esea.js');
 
-  // FACEIT pakker nyttelasten i payload; den indre form er den interessante.
-  assert.equal(describeBody({ payload: { leagues: [] }, code: 'OK' }), 'payload,code → leagues');
-  assert.equal(describeBody([1, 2, 3]), 'array(3)');
-  assert.equal(describeBody(null), 'tomt');
-  assert.equal(describeBody(undefined), 'tomt');
+  // En finale har sæson og region, men ingen division.
+  assert.deepEqual(parseCompetitionName('S58 OCE Finals Central - Finals'), {
+    season: 58,
+    region: 'OCE',
+    division: null,
+  });
+
+  assert.deepEqual(parseCompetitionName('Europe 5v5 Queue'), {
+    season: null,
+    region: null,
+    division: null,
+  });
+
+  assert.deepEqual(parseCompetitionName(''), { season: null, region: null, division: null });
+});
+
+test('parseDivisionName kræver stadig en division', async () => {
+  const { parseDivisionName } = await import('../src/esea.js');
+
+  assert.equal(parseDivisionName('S59 EU Main B - Regular Season').division, 'Main');
+  assert.equal(parseDivisionName('S58 OCE Finals Central - Finals'), null);
+  assert.equal(parseDivisionName('Europe 5v5 Queue'), null);
 });

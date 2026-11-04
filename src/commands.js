@@ -24,8 +24,8 @@ import {
   parseTeamId,
   probeTeamRoutes,
   recentCompetitions,
+  parseCompetitionName,
 } from './esea.js';
-import { probeInternal, teamLeagueCandidates } from './internal.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
   SEP,
@@ -482,23 +482,45 @@ export async function commandEsea({ channel, argument }) {
   const { player } = await resolveTarget(channel, argument);
   const { region } = channels.get(channel);
 
-  const [teams, championships] = await Promise.all([
+  const [teams, played] = await Promise.all([
     getPlayerTeams(player.playerId),
-    listChampionships(),
+    recentCompetitions(player.playerId).catch(() => []),
   ]);
 
   if (teams.length === 0) {
     return `${player.nickname} er ikke på noget FACEIT-hold`;
   }
 
-  const competitions = pickCompetitions(championships, region);
-  if (competitions.length === 0) {
-    return `Fandt ingen ESEA-turneringer${SEP}prøv igen senere`;
+  const teamIds = teams.map((t) => t.teamId);
+
+  // Første vej: turneringerne bag spillerens egne kampe.
+  //
+  // Det er den eneste officielle kilde til den KØRENDE sæson. Organizerens
+  // championships kender den ikke — 542 turneringer, ingen igangværende, også
+  // med type=ongoing — og holdets egne ruter giver nul eller 404. Men hver
+  // kamp hører til en turnering, så en spiller der er aktiv i ligaen bærer
+  // den i sin historik.
+  const fromMatches = played
+    .filter((c) => c.id && c.type === 'championship')
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      startedAt: c.at,
+      ...parseCompetitionName(c.name),
+    }));
+
+  const current = await findTeamStanding(teamIds, fromMatches);
+  if (current) {
+    return formatEsea({ nickname: player.nickname, region, standing: current });
   }
 
-  const standing = await findTeamStanding(teams.map((t) => t.teamId), competitions);
+  // Anden vej: organizerens historik, for en spiller der ikke har spillet
+  // ligakampe for nylig. Svaret bliver mærket "afsluttet".
+  const championships = await listChampionships();
+  const candidates = pickCompetitions(championships, region);
+  const historic = await findTeamStanding(teamIds, candidates);
 
-  return formatEsea({ nickname: player.nickname, region, standing });
+  return formatEsea({ nickname: player.nickname, region, standing: historic });
 }
 
 /**
@@ -510,10 +532,7 @@ export async function commandEsea({ channel, argument }) {
  * hvor mange der er igangværende, og hvilke den leder i først.
  */
 export async function commandEseaDebug({ channel, argument: raw }) {
-  let argument = raw;
-  // "!csbotesea web <noget>" slår over i det interne API.
-  const wantsInternal = /^web\s+/i.test(argument ?? '');
-  if (wantsInternal) argument = argument.replace(/^web\s+/i, '');
+  const argument = raw;
 
   // Med et hold-id undersøges holdets egne ruter i stedet. ESEA's kørende
   // sæson findes ikke under organizeren, så den må nås fra holdets side — og
@@ -542,20 +561,6 @@ export async function commandEseaDebug({ channel, argument: raw }) {
   }
 
   if (teamId) {
-    // "web <hold>" prøver FACEIT's interne API i stedet for Data API'et.
-    // Udokumenteret, derfor en diagnose frem for noget der køres i det stille.
-    if (wantsInternal) {
-      const results = await probeInternal(teamLeagueCandidates(teamId));
-      const ok = results.filter((r) => r.status === 200 && r.shape !== 'tomt');
-
-      if (ok.length === 0) {
-        const codes = [...new Set(results.map((r) => r.status || 'net'))].join('/');
-        return `internt API${SEP}ingen af ${results.length} ruter svarede brugbart (${codes})`;
-      }
-
-      return ok.map((r) => `${r.path} → ${r.shape}`).join(SEP);
-    }
-
     const results = await probeTeamRoutes(teamId);
 
     const parts = results.map((r) => {

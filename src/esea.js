@@ -26,37 +26,42 @@ const listCache = new TtlCache(60 * 60_000, 4);
 const standingsCache = new TtlCache(30 * 60_000, 60);
 
 /**
- * Læser region, division og sæson ud af et championship-navn.
+ * Læser sæson, region og division ud af et turneringsnavn.
  *
- * "ESEA League EU Advanced S55 Qualifier" -> { region: 'EU', division:
- * 'Advanced', season: 55 }
+ * ESEA navngiver IKKE konsekvent. To former er set i praksis:
  *
- * Navnet er den eneste kilde: svarets `region`-felt findes, men division og
- * sæson står ingen andre steder. Alt der ikke passer på mønsteret er noget
- * andet end en ligadivision — finaler, relegation, ESL Impact — og skal ikke
- * med.
+ *   "ESEA League EU Advanced S55 Qualifier"   — historik under organizeren
+ *   "S59 EU Main B - Regular Season"          — den kørende sæson
+ *
+ * Derfor matches der ikke på en fast rækkefølge. Hvert felt findes for sig,
+ * hvor det end står, og det der mangler bliver null. Et strikt mønster var
+ * grunden til at den kørende sæson aldrig blev genkendt.
  */
-export function parseDivisionName(name) {
-  const match = String(name ?? '').match(
-    /^ESEA League\s+([A-Z]{2,3})\s+(Entry|Intermediate|Main|Advanced|Open)\s+S(\d+)\b/i,
-  );
-  if (!match) return null;
+const SEASON = /\bS(?:eason\s*)?(\d{1,3})\b/i;
+const REGION = /\b(EU|NA|SA|AS|OCE|ME)\b/;
+const DIVISION = /\b(Entry|Intermediate|Main|Advanced|Open|Premier|Challenger)\b/i;
+
+export function parseCompetitionName(name) {
+  const text = String(name ?? '');
+  if (!text) return { season: null, region: null, division: null };
+
+  const season = Number(text.match(SEASON)?.[1] ?? NaN);
+  const division = text.match(DIVISION)?.[1];
 
   return {
-    region: match[1].toUpperCase(),
-    division: match[2][0].toUpperCase() + match[2].slice(1).toLowerCase(),
-    season: Number(match[3]),
+    season: Number.isFinite(season) ? season : null,
+    region: text.match(REGION)?.[1]?.toUpperCase() ?? null,
+    division: division ? division[0].toUpperCase() + division.slice(1).toLowerCase() : null,
   };
 }
 
-/**
- * Alle championships under ESEA-organizeren.
- *
- * Der filtreres IKKE på navnet. Første version gjorde, og den fandt kun 59 af
- * 543 — resten havde ingen sæson i navnet, heriblandt den sæson der faktisk
- * kørte. Navnet bruges nu kun til at sætte en pæn etiket på svaret; udvælgelsen
- * sker på `status` og datoer, som er felter API'et vedligeholder.
- */
+/** Beholdt under sit gamle navn, fordi resten af koden kalder den sådan. */
+export function parseDivisionName(name) {
+  const parsed = parseCompetitionName(name);
+  // Uden en division er det ikke en ligadivision, men fx en finale.
+  return parsed.division ? parsed : null;
+}
+
 /**
  * Hvilke `type`-varianter der spørges om.
  *
