@@ -14,6 +14,7 @@ import {
   commandLobby,
   commandTop,
   commandMaps,
+  commandEsea,
   commandCommands,
   commandPlayerList,
   commandAddPlayer,
@@ -44,6 +45,9 @@ const handlers = new Map([
   // Erstatter LoL-bottens !chal: viser land og region frem for cutoffs.
   ['top', { level: 'everyone', run: commandTop }],
   ['maps', { level: 'everyone', run: commandMaps }],
+  // ESEA er en holdliga, så svaret er holdets division og placering — derfor
+  // sin egen kommando frem for en linje i !rank.
+  ['esea', { level: 'everyone', run: commandEsea }],
   ['oldcommands', { level: 'everyone', run: commandCommands }],
   ['oldplayerlist', { level: 'mod', run: commandPlayerList }],
   ['oldaddplayer', { level: 'mod', run: commandAddPlayer }],

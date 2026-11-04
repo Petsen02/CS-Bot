@@ -13,6 +13,7 @@ import {
   getRanking,
 } from './faceit.js';
 import { nextLevel, winsNeeded, levelFor } from './elo.js';
+import { getLeague, pickCurrentSeason, getPlayerSeason, readEseaStanding, hasEseaPlace } from './esea.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
   SEP,
@@ -25,6 +26,7 @@ import {
   formatLobby,
   formatTop,
   formatMaps,
+  formatEsea,
   formatNicknames,
 } from './format.js';
 
@@ -394,6 +396,39 @@ export async function commandMaps({ channel, argument }) {
     nickname: player.nickname,
     best: entries[0],
     worst: entries.at(-1),
+  });
+}
+
+/**
+ * Spillerens plads i den igangværende ESEA-sæson.
+ *
+ * Bevidst adskilt fra !rank. ESEA er en holdliga med divisioner og sæsoner, så
+ * svaret er holdets division, rekord og placering — ikke et personligt tal.
+ * At presse det ind i !rank ville blande to størrelser der ikke kan
+ * sammenlignes.
+ */
+export async function commandEsea({ channel, argument }) {
+  const { player } = await resolveTarget(channel, argument);
+
+  const season = pickCurrentSeason(await getLeague());
+  if (!season?.seasonId) {
+    return `Kunne ikke finde en ESEA-sæson lige nu${SEP}prøv igen senere`;
+  }
+
+  let standing = null;
+  try {
+    standing = readEseaStanding(await getPlayerSeason(player.playerId, season.seasonId));
+  } catch (error) {
+    // 404 her betyder "spilleren er ikke med i sæsonen", hvilket er et
+    // gyldigt svar og ikke en fejl at vise seeren.
+    if (error.kind !== 'not_found') throw error;
+    logger.info(`!esea: ${player.nickname} er ikke i sæson ${season.name ?? season.seasonId}`);
+  }
+
+  return formatEsea({
+    nickname: player.nickname,
+    season: season.name,
+    standing: hasEseaPlace(standing) ? standing : null,
   });
 }
 

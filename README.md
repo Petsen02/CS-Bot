@@ -1,7 +1,7 @@
 # CS-Bot
 
-Twitch-chatbot der viser Counter-Strike 2-rangdata for en liste af spillere,
-via FACEIT's officielle API.
+Twitch-chatbot der viser Counter-Strike 2-rangdata for en liste af spillere:
+**FACEIT-elo** og **ESEA League**, begge via FACEIT's officielle API.
 
 Søsterprojekt til [LoL Twitch Bot](https://github.com/Petsen02/TwitchBot).
 Kommandonavnene er med vilje de samme, så seere og mods ikke skal lære et nyt
@@ -13,14 +13,26 @@ sæt for at følge en anden titel i samme chat.
 > the views or opinions of either. Counter-Strike and all associated properties
 > are trademarks or registered trademarks of Valve Corporation.
 
-## Det viser FACEIT-elo, ikke Premier
+## FACEIT og ESEA — ikke Premier
 
-Valve udstiller ikke Premier CS Rating gennem noget API. Steam Web API giver
-profil, spilletid og achievements — men hverken CS Rating eller skill group.
-Botten rapporterer derfor **FACEIT-elo og -level**, som er det nærmeste der
-findes en officiel, dokumenteret kilde til.
+Botten dækker to ting, og de er bevidst holdt adskilt:
 
-Spiller din kanal udelukkende Premier, er denne bot ikke det rigtige værktøj.
+- **FACEIT-elo** — et personligt tal der flytter sig hver kamp. `!rank`,
+  `!session`, `!nextrank`, `!lastgame`, `!lobby`, `!top`, `!maps`.
+- **ESEA League** — en **holdliga** med sæsoner og divisioner. `!esea` viser
+  holdets division, sæsonrekord og placering.
+
+Der findes ikke noget personligt "ESEA-tal" der svarer til elo, så de to kan
+ikke sammenlignes eller lægges sammen. Derfor er `!esea` sin egen kommando og
+ikke en linje i `!rank`.
+
+**Valve's Premier er ikke med**, og det er et valg, ikke en mangel: Valve
+udstiller ikke CS Rating gennem noget API, og de projekter der alligevel læser
+det, snakker uofficielt med Valves Game Coordinator via en lokal spilklient.
+
+ESEA kører i øvrigt på FACEIT's egen platform — ESEA drives af ESL FACEIT
+Group — så begge dele kommer fra samme API med samme nøgle og samme
+rate limit-budget.
 
 ## Status
 
@@ -47,6 +59,7 @@ betjene flere streamere uden at de ser hinandens spillere.
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
 | `!top [nick]` | `PETSEN LEVEL10: 2347 elo │ DK #12 │ EU #418` |
 | `!maps [nick]` | `PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)` |
+| `!esea [nick]` | `PETSEN │ ESEA Advanced Group C │ Nordic Noobs 7-3 │ #4` |
 
 Alle kommandoer tager et FACEIT-nick, et SteamID64 eller et link til en
 Steam- eller FACEIT-profil. Uden argument svarer de om kanalens main.
@@ -61,6 +74,17 @@ Der står `EU`, ikke "verden": **FACEIT's ranglister er altid regionale**, da
 regionen er en del af API-stien. Der findes ikke noget globalt tal at hente, og
 at skrive "verden" over en regionsplacering ville være en påstand API'et ikke
 kan bakke op.
+
+### ESEA er en holdliga
+
+`!esea` svarer om et hold, ikke om en person. Spiller streameren ikke ESEA
+League i den igangværende sæson, siger botten det direkte frem for at vise
+`0-0`.
+
+Sæsonen slås op automatisk ud fra ligaen, så en ny ESEA-sæson kræver ingen
+ændring og ingen udrulning. Kører der ingen sæson lige nu, vises den seneste
+der er begyndt, så svaret bliver "sidste sæson sluttede sådan" frem for
+ingenting. Kun liga-id'et står i `.env`, som `ESEA_LEAGUE_ID`.
 
 ## Admin-kommandoer
 
@@ -163,6 +187,10 @@ hver uhåndteret fejl i `logs/crashes/` med fuld stak.
 
 - Elo, level, kampe, igangværende kampe og ranglister:
   [FACEIT Data API](https://docs.faceit.com/docs/data-api/)
+- ESEA League: samme API's league-endpoints
+  (`/leagues/{id}`, `/leagues/{id}/seasons/{id}/players/{id}`).
+  **Ikke** `play.esea.net`, som er Cloudflare-beskyttet og kun kan skrabes
+  uofficielt — se [ESEA League på FACEIT](https://www.faceit.com/en/esealeague)
 - Mapnavne: statisk tabel i `src/maps.js`
 
 Pro-opslag i `!lobby`, svarende til LoL-bottens lolpros.gg-integration, er ikke

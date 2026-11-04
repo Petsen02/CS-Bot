@@ -152,6 +152,17 @@ export const config = {
       { limit: count('FACEIT_LIMIT_PER_TEN_MINUTES', 400), windowMs: 600_000 },
     ],
   },
+  esea: {
+    /**
+     * ESEA League's id på FACEIT, som det står i den offentlige liga-URL
+     * (faceit.com/en/cs2/league/esea%20league/<dette id>/...).
+     *
+     * I .env frem for i koden, fordi et id der skifter ville kræve en ny
+     * udrulning for at rette. Sæson-id'et står bevidst IKKE her — det udledes
+     * af ligaen, så en ny sæson ikke kræver at nogen husker at opdatere noget.
+     */
+    leagueId: process.env.ESEA_LEAGUE_ID || 'a14b8616-45b9-4581-8637-4dfd0b5f6af8',
+  },
   defaultRegion,
   defaultCountry,
   rankStyle: parseRankStyle(process.env.RANK_STYLE),

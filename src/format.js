@@ -183,6 +183,41 @@ export function formatMaps({ nickname, best, worst }) {
   return parts.join(SEP);
 }
 
+/**
+ * "PETSEN │ ESEA Advanced │ Nordic Noobs 7-3 │ #4"
+ *
+ * ESEA er en holdliga, så svaret handler om holdet og divisionen — der findes
+ * intet personligt ESEA-tal der svarer til FACEIT-elo. Felter der mangler
+ * udelades: "0-3" uden at have spillet ville være en påstand.
+ */
+export function formatEsea({ nickname, season, standing }) {
+  if (!standing) {
+    const which = season ? ` (${season})` : '';
+    return `${nickname} er ikke på et ESEA-hold i denne sæson${which}`;
+  }
+
+  const parts = [nickname];
+
+  const division = [standing.division, standing.group].filter(Boolean).join(' ');
+  if (division) parts.push(`ESEA ${division}`);
+  else if (season) parts.push(`ESEA ${season}`);
+
+  const record = Number.isFinite(standing.wins) && Number.isFinite(standing.losses)
+    ? `${standing.wins}-${standing.losses}`
+    : null;
+
+  if (standing.teamName && record) parts.push(`${standing.teamName} ${record}`);
+  else if (standing.teamName) parts.push(standing.teamName);
+  else if (record) parts.push(record);
+
+  if (Number.isFinite(standing.placement)) parts.push(`#${standing.placement}`);
+
+  // Kun nicket og intet andet betyder at svaret var tomt i praksis.
+  if (parts.length === 1) return `${nickname} — ingen ESEA-data i denne sæson`;
+
+  return parts.join(SEP);
+}
+
 /** Hjælper til !oldplayerlist og lignende: en læsbar liste af nicks. */
 export function formatNicknames(players) {
   if (players.length === 0) return 'listen er tom';

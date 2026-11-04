@@ -57,7 +57,12 @@ function describe(status) {
   }
 }
 
-async function request(path, { retries = 2, params } = {}) {
+/**
+ * Eksporteret, så esea.js kan dele samme limiter, retry og fejloversættelse.
+ * Ét budget for hele API'et er hele pointen — to klienter med hver sin tæller
+ * ville tilsammen kunne overskride det uden at nogen af dem så det.
+ */
+export async function request(path, { retries = 2, params } = {}) {
   const url = new URL(`${config.faceit.baseUrl}${path}`);
   for (const [key, value] of Object.entries(params ?? {})) {
     if (value !== undefined && value !== null && value !== '') {

@@ -11,6 +11,11 @@ Dette er en plan, ikke en implementering. Den skal godkendes før der kodes.
 > the views or opinions of either. Counter-Strike and all associated
 > properties are trademarks or registered trademarks of Valve Corporation.
 
+> **Opdateret efter planen blev skrevet:** omfanget er nu **FACEIT og ESEA**.
+> Valve's Premier er ude, som et valg frem for som en mangel. ESEA er tilføjet
+> og kan hentes gennem FACEIT's egne league-endpoints, fordi ESEA drives af
+> ESL FACEIT Group og ligaen ligger på FACEIT's platform. Se §13.
+
 ## 1. Den hårde begrænsning: ingen officiel Premier-API
 
 Valve udstiller ikke Premier CS Rating nogen steder. Steam Web API giver
@@ -73,6 +78,7 @@ Tallene i parentes er linjer i LoL-botten.
 | `!lobby` | `!lobby [nick]` | Gennemsnitselo i igangværende kamp, pr. hold |
 | `!chal` / `!cutoff` | `!top` | `PETSEN LEVEL10: 2347 elo │ DK #12 │ EU #418` — land og region, ikke cutoffs |
 | — | `!maps [nick]` | Ny: bedste og dårligste map efter winrate. FACEIT giver segmenter pr. map gratis |
+| — | `!esea [nick]` | Ny: `PETSEN │ ESEA Advanced Group C │ Nordic Noobs 7-3 │ #4`. Holdliga, ikke personlig stige |
 
 Admin-kommandoerne beholder `!old`-præfikset, så muskelhukommelsen virker på
 tværs af de to bots:
@@ -269,3 +275,59 @@ datalag.
 - [FACEIT-ranks i CS2, inkl. Challenger-status](https://bo3.gg/articles/faceit-ranks-in-counter-strike-2-everything-you-need-to-know)
 - [Forumtråd: paginering i `/players/{id}/history`](https://forums.faceit.com/t/data-api-v4-player-match-history-bug/11089)
 - [Leetify public API — docs refereret af community-værktøjer](https://clawhub.ai/leetify)
+
+## 13. ESEA
+
+Tilføjet efter planen blev skrevet, sammen med beslutningen om at droppe
+Premier helt.
+
+### Hvorfor gennem FACEIT og ikke play.esea.net
+
+ESEA drives af ESL FACEIT Group, og ESEA League ligger på FACEIT's egen
+platform — liga-URL'en er `faceit.com/en/cs2/league/esea league/<league_id>/…`.
+Data API v4 har league-endpoints, inklusive en rute for en spillers plads i en
+sæson, så ESEA kommer fra samme API, samme nøgle og samme rate limit-budget
+som alt andet.
+
+Alternativet var `play.esea.net`, som er Cloudflare-beskyttet. De
+community-projekter der henter derfra, kører en headless browser for at komme
+igennem. Det ville betyde en Chromium-afhængighed på serveren og et setup der
+knækker hver gang Cloudflare strammer skruen — for data vi sandsynligvis kan få
+officielt.
+
+### ESEA er en holdliga, og det ændrer svaret
+
+Der findes ikke noget personligt ESEA-tal der svarer til FACEIT-elo. ESEA har
+hold, sæsoner og divisioner (Open, Intermediate, Main, Advanced), så `!esea`
+svarer om holdet: division, eventuel gruppe, sæsonrekord og placering.
+
+Derfor er det sin egen kommando. At lægge en ESEA-division ind i `!rank` ved
+siden af et elo-tal ville sidestille to størrelser der ikke kan sammenlignes.
+
+### Sæsonen udledes, den konfigureres ikke
+
+Sæson-id'et skifter hver sæson. Stod det i `.env`, ville botten vise forældede
+tal fra den dag en ny sæson begyndte, indtil nogen huskede at rette det. I
+stedet udledes sæsonen af ligaens egen sæsonliste ved hvert opslag:
+
+1. En sæson der er åben nu vinder.
+2. Ellers den seneste der er begyndt — så svaret mellem to sæsoner bliver
+   "sidste sæson sluttede sådan" frem for ingenting.
+3. Rækkefølgen i API-svaret antages ikke, og tidsstempler accepteres som
+   sekunder, millisekunder eller ISO.
+
+Kun `ESEA_LEAGUE_ID` står i `.env`, så et skiftet liga-id ikke kræver en
+kodeændring.
+
+### Hvad der stadig skal verificeres
+
+Som resten af dataklienten er ESEA-stierne ubekræftede — faceit.com var
+blokeret under udviklingen. `npm run check` slår ligaen op, viser hvilken sæson
+der blev valgt, henter spillerens plads og navngiver de felter der manglede.
+
+To ting er særligt usikre: om `/leagues/{id}` faktisk returnerer sæsonlisten i
+det felt `pickCurrentSeason` læser, og om ESEA's divisioner og placeringer
+ligger i player-season-svaret eller kun i et separat standings-endpoint. Et
+ældre forumindlæg peger på at detaljerede liga-standings kan mangle i v4 og
+kun findes i FACEIT's interne web-API; i så fald må `!esea` nøjes med division
+og hold, uden placering.

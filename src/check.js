@@ -21,6 +21,7 @@ import {
   getRanking,
 } from './faceit.js';
 import { readMatchStats, didWin } from './commands.js';
+import { getLeague, pickCurrentSeason, getPlayerSeason, readEseaStanding, hasEseaPlace } from './esea.js';
 import { levelFor, nextLevel } from './elo.js';
 
 const PASS = '  ok  ';
@@ -187,6 +188,43 @@ async function run() {
   if (national) {
     report(national.position === null ? WARN : PASS, `${defaultCountry}-placering`,
       national.position === null ? 'ingen position i svaret' : `#${national.position}`);
+  }
+
+  console.log('\n--- ESEA League ---');
+  const league = await step('getLeague', () => getLeague());
+
+  if (league) {
+    const seasons = Array.isArray(league.seasons) ? league.seasons : [];
+    report(seasons.length > 0 ? PASS : FAIL, 'sæsoner i svaret', String(seasons.length));
+
+    if (seasons.length === 0) {
+      // Uden en sæsonliste kan sæsonen ikke udledes, og !esea har intet at slå op.
+      console.log(`         nøgler i liga-svaret: ${Object.keys(league).join(', ')}`);
+    }
+
+    const season = pickCurrentSeason(league);
+    if (!season?.seasonId) {
+      report(FAIL, 'valgt sæson', 'kunne ikke udledes af ligaen');
+    } else {
+      report(PASS, 'valgt sæson', `${season.name ?? '(uden navn)'} — ${season.seasonId}`);
+
+      const raw = await step('getPlayerSeason', () => getPlayerSeason(player.playerId, season.seasonId));
+      if (raw) {
+        const standing = readEseaStanding(raw);
+        if (!hasEseaPlace(standing)) {
+          // Et gyldigt svar: spilleren er ikke på et hold i denne sæson.
+          report(WARN, 'ESEA-plads', 'spilleren er ikke med i sæsonen');
+          console.log(`         nøgler: ${Object.keys(raw).join(', ')}`);
+        } else {
+          expect('division', standing.division, { required: false });
+          expect('gruppe', standing.group, { required: false });
+          expect('hold', standing.teamName, { required: false });
+          expect('placering', standing.placement, { required: false });
+          expect('W-L', standing.wins === null ? null : `${standing.wins}-${standing.losses}`,
+            { required: false });
+        }
+      }
+    }
   }
 
   console.log('');
