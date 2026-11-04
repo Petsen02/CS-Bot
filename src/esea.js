@@ -416,3 +416,75 @@ export async function recentCompetitions(playerId, { matches = 20, lookups = 6 }
 
   return [...found.values()].sort((a, b) => (b.at ?? 0) - (a.at ?? 0));
 }
+
+/**
+ * Læser tidspunkt og hold ud af en kommende kamp.
+ *
+ * Feltnavnene er ikke bekræftet for kommende kampe — de spillede kampe bruger
+ * `finished_at`, og en kamp der ikke er spillet endnu har noget andet. Derfor
+ * prøves flere, og det der ikke findes bliver null.
+ */
+export function readScheduledMatch(item) {
+  if (!item || typeof item !== 'object') return null;
+
+  const at = toMillis(
+    item.scheduled_at ?? item.started_at ?? item.configured_at ?? item.match_start,
+  );
+
+  const factions = Object.values(item.teams ?? {});
+  const teamIds = [];
+  const names = [];
+
+  for (const faction of factions) {
+    if (!faction) continue;
+
+    const id = faction.faction_id ?? faction.team_id ?? faction.id ?? faction.roster_id;
+    if (id) teamIds.push(String(id));
+
+    const name = faction.name ?? faction.nickname;
+    if (name) names.push(String(name));
+  }
+
+  return {
+    matchId: item.match_id ?? item.id ?? null,
+    at,
+    teamIds,
+    names,
+    status: String(item.status ?? '').toLowerCase(),
+  };
+}
+
+/**
+ * Næste kamp for et af holdene, i en af turneringerne.
+ *
+ * Returnerer den tidligste, så svaret er "hvornår spiller de næste gang" og
+ * ikke en vilkårlig kamp fra programmet.
+ */
+export async function findNextMatch(teamIds, competitions) {
+  const { getChampionshipMatches } = await import('./faceit.js');
+
+  const wanted = new Set(teamIds.filter(Boolean));
+  if (wanted.size === 0) return null;
+
+  let best = null;
+
+  for (const competition of competitions) {
+    let payload;
+    try {
+      payload = await getChampionshipMatches(competition.id, { type: 'upcoming', limit: 20 });
+    } catch {
+      continue;
+    }
+
+    for (const item of payload?.items ?? []) {
+      const match = readScheduledMatch(item);
+      if (!match?.at || !match.teamIds.some((id) => wanted.has(id))) continue;
+
+      if (!best || match.at < best.at) {
+        best = { ...match, competition: competition.name, ...parseCompetitionName(competition.name) };
+      }
+    }
+  }
+
+  return best;
+}

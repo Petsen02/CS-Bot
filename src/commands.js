@@ -26,6 +26,7 @@ import {
   probeTeamRoutes,
   recentCompetitions,
   parseCompetitionName,
+  findNextMatch,
 } from './esea.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
@@ -40,6 +41,7 @@ import {
   formatTop,
   formatMaps,
   formatEsea,
+  formatNextMatch,
   formatNicknames,
 } from './format.js';
 
@@ -535,6 +537,38 @@ export async function commandEsea({ channel, argument }) {
   const historic = await findTeamStanding(teamIds, candidates);
 
   return formatEsea({ nickname: player.nickname, region, standing: historic });
+}
+
+/**
+ * Hvornår holdet spiller næste ESEA-kamp.
+ *
+ * Spillerens historik indeholder kun spillede kampe, så programmet hentes fra
+ * turneringen selv med `type=upcoming`. Turneringen findes samme vej som
+ * !esea: gennem de kampe spilleren allerede har spillet.
+ */
+export async function commandNextEsea({ channel, argument }) {
+  const { player } = await resolveTarget(channel, argument);
+
+  const [teams, played] = await Promise.all([
+    getPlayerTeams(player.playerId),
+    recentCompetitions(player.playerId).catch(() => []),
+  ]);
+
+  if (teams.length === 0) {
+    return `${player.nickname} er ikke på noget FACEIT-hold`;
+  }
+
+  const competitions = played
+    .filter((c) => c.id && c.type === 'championship')
+    .map((c) => ({ id: c.id, name: c.name }));
+
+  if (competitions.length === 0) {
+    return `${player.nickname}${SEP}ingen ESEA-turnering i de seneste kampe`;
+  }
+
+  const match = await findNextMatch(teams.map((t) => t.teamId), competitions);
+
+  return formatNextMatch({ nickname: player.nickname, match });
 }
 
 /**

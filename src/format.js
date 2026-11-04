@@ -1,7 +1,7 @@
 import { config } from './config.js';
 import { formatPlayerElo, formatLevel, formatEloDelta, levelFor } from './elo.js';
 import { mapName } from './maps.js';
-import { formatDate, formatClock } from './time.js';
+import { formatDate, formatClock, formatRelative } from './time.js';
 
 /** Samme felt-adskiller som LoL-botten, så de to læses ens i chatten. */
 export const SEP = ' │ ';
@@ -292,6 +292,34 @@ export function formatEsea({ nickname, region, standing }) {
 
   // En afsluttet sæson er stadig et svar, men seeren skal vide det er historik.
   if (standing.live === false) parts.push('afsluttet');
+
+  return parts.join(SEP);
+}
+
+/**
+ * "vigg0 │ ESEA S59 Main │ Elitemilijoet vs Astralis Talent │ 06/11/26 kl 20:00 │ om 2 dage"
+ *
+ * Både dato og "om hvor længe". En dato alene svarer ikke på det folk spørger
+ * om i en chat, og et "om 2 dage" alene kan man ikke planlægge efter.
+ */
+export function formatNextMatch({ nickname, match }) {
+  if (!match) return `${nickname} har ingen planlagte ESEA-kampe`;
+
+  const label = Number.isFinite(match.season) && match.division
+    ? `ESEA S${match.season} ${match.division}`
+    : truncate(match.competition || 'ESEA', 50);
+
+  const parts = [nickname, label];
+
+  if (match.names.length >= 2) parts.push(match.names.slice(0, 2).join(' vs '));
+  else if (match.names.length === 1) parts.push(match.names[0]);
+
+  if (Number.isFinite(match.at)) {
+    parts.push(`${formatDate(config.timezone, match.at)} ${formatClock(config.timezone, match.at)}`);
+
+    const relative = formatRelative(match.at);
+    if (relative) parts.push(relative);
+  }
 
   return parts.join(SEP);
 }

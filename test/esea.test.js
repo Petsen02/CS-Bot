@@ -238,3 +238,56 @@ test('readStandings giver samme rækkefølge hver gang', async () => {
   assert.deepEqual(readStandings([...rows].reverse()).map((s) => s.teamName), ['Alfa', 'Zulu']);
   assert.deepEqual(readStandings(rows).map((s) => s.teamName), ['Alfa', 'Zulu']);
 });
+
+/**
+ * Kommende kampe har andre feltnavne end spillede — en kamp der ikke er
+ * spillet endnu har ingen `finished_at`. Derfor prøves flere, og det der ikke
+ * findes bliver null.
+ */
+test('readScheduledMatch læser tid og hold ud af en kommende kamp', async () => {
+  const { readScheduledMatch } = await import('../src/esea.js');
+
+  const match = readScheduledMatch({
+    match_id: 'm1',
+    status: 'SCHEDULED',
+    scheduled_at: 1_793_000_000,
+    teams: {
+      faction1: { faction_id: 't1', name: 'Elitemilijoet' },
+      faction2: { faction_id: 't2', name: 'Astralis Talent' },
+    },
+  });
+
+  assert.equal(match.matchId, 'm1');
+  assert.equal(match.at, 1_793_000_000_000, 'sekunder skal skaleres op');
+  assert.deepEqual(match.teamIds, ['t1', 't2']);
+  assert.deepEqual(match.names, ['Elitemilijoet', 'Astralis Talent']);
+});
+
+test('readScheduledMatch tåler andre feltnavne og manglende tid', async () => {
+  const { readScheduledMatch } = await import('../src/esea.js');
+
+  const match = readScheduledMatch({
+    id: 'm2',
+    teams: { faction1: { team_id: 't1', nickname: 'Holdet' } },
+  });
+
+  assert.equal(match.matchId, 'm2');
+  assert.equal(match.at, null, 'ingen opdigtet dato');
+  assert.deepEqual(match.teamIds, ['t1']);
+
+  assert.equal(readScheduledMatch(null), null);
+  assert.deepEqual(readScheduledMatch({}).teamIds, []);
+});
+
+test('formatRelative siger hvor længe der er til', async () => {
+  const { formatRelative } = await import('../src/time.js');
+  const now = Date.parse('2026-11-04T12:00:00Z');
+
+  assert.equal(formatRelative(now + 30 * 60_000, now), 'om 30m');
+  assert.equal(formatRelative(now + 5 * 3_600_000, now), 'om 5t');
+  assert.equal(formatRelative(now + 26 * 3_600_000, now), 'i morgen');
+  assert.equal(formatRelative(now + 3 * 86_400_000, now), 'om 3 dage');
+  // En kamp der allerede er begyndt skal ikke stå som "om -5m".
+  assert.equal(formatRelative(now - 60_000, now), 'i gang nu');
+  assert.equal(formatRelative(null, now), '');
+});

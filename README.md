@@ -72,8 +72,12 @@ betjene flere streamere uden at de ser hinandens spillere.
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
 | `!top [nick]` | `PETSEN LVL10 2347 elo │ DK #12 │ EU #418` |
 | `!maps [nick]` | `PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)` |
-| `!esea [nick]` | `vigg0 │ ESEA S55 Advanced │ SPARTA 8-0 │ #1 af 16 │ 24 pts` |
+| `!esea [nick]` | `vigg0 │ ESEA S59 Main │ Elitemilijoet 5-4 │ #25 af 76 │ 15 pts` |
+| `!næsteesea [nick]` | `vigg0 │ ESEA S59 Main │ Elitemilijoet vs Astralis Talent │ 06/11/26 kl 20:00 │ om 2 dage` |
 
+
+`!nextesea` er samme kommando som `!næsteesea`, for de tastaturer hvor æ er
+besværligt.
 
 Alle kommandoer tager et FACEIT-nick, et SteamID64 eller et link til en
 Steam- eller FACEIT-profil. Uden argument svarer de om kanalens main.
@@ -178,6 +182,12 @@ ligaen bærer den i sin historik. `!esea` henter derfor spillerens seneste
 kampe, tager de turneringer der er af typen `championship`, og leder efter
 holdet i deres stillinger. Findes holdet ikke der, falder den tilbage til
 organizerens historik, og svaret mærkes `afsluttet`.
+
+`!næsteesea` henter programmet fra turneringen med `type=upcoming` —
+spillerens historik indeholder kun spillede kampe. Turneringen findes samme
+vej som `!esea`. Svaret viser både dato og "om hvor længe": en dato alene
+svarer ikke på det folk spørger om i en chat, og "om 2 dage" alene kan man
+ikke planlægge efter.
 
 **Navnene matches ikke på en fast rækkefølge.** ESEA navngiver ikke
 konsekvent — historikken hedder `ESEA League EU Advanced S55 Qualifier`, den

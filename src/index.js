@@ -25,6 +25,7 @@ import {
   commandTop,
   commandMaps,
   commandEsea,
+  commandNextEsea,
   commandEseaDebug,
   commandCommands,
   commandPlayerList,
@@ -65,6 +66,9 @@ const handlers = new Map([
   // ESEA er en holdliga, så svaret er holdets division og placering — derfor
   // sin egen kommando frem for en linje i !rank.
   ['esea', { level: 'everyone', run: commandEsea }],
+  // Samme kommando under to navne: æ er besværligt på nogle tastaturer.
+  ['næsteesea', { level: 'everyone', run: commandNextEsea }],
+  ['nextesea', { level: 'everyone', run: commandNextEsea }],
   [`${ADMIN}commands`, { level: 'everyone', run: commandCommands }],
   [`${ADMIN}playerlist`, { level: 'mod', run: commandPlayerList }],
   [`${ADMIN}addplayer`, { level: 'mod', run: commandAddPlayer }],

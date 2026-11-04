@@ -378,6 +378,18 @@ export function readPosition(payload, playerId) {
   return null;
 }
 
+/**
+ * En turnerings kampe. `type` kan være upcoming, ongoing, past eller all.
+ *
+ * Kommende kampe er den eneste officielle kilde til hvornår der spilles
+ * næste gang — spillerens historik indeholder kun det der er spillet.
+ */
+export function getChampionshipMatches(championshipId, { type = 'upcoming', limit = 20 } = {}) {
+  return statsCache.wrap(`champmatches:${type}:${championshipId}`, () =>
+    request(`/championships/${encodeURIComponent(championshipId)}/matches`,
+      { params: { type, limit } }));
+}
+
 /** Spillerens hold. Nøglen til at finde dem i en ESEA-division. */
 export function getPlayerTeams(playerId) {
   return statsCache.wrap(`teams:${playerId}`, async () => {

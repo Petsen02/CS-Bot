@@ -101,3 +101,25 @@ export function nextBoundary(intervalMinutes, at = Date.now()) {
   const intervalMs = intervalMinutes * 60_000;
   return Math.floor(at / intervalMs) * intervalMs + intervalMs;
 }
+
+/**
+ * "om 2 dage", "om 3t 20m", "i gang nu".
+ *
+ * En dato alene svarer ikke på spørgsmålet "hvornår spiller de så" — man skal
+ * selv regne. Begge dele vises, så chatten kan læse det i forbifarten.
+ */
+export function formatRelative(at, now = Date.now()) {
+  if (!Number.isFinite(at)) return '';
+
+  const ms = at - now;
+  if (ms <= 0) return 'i gang nu';
+
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 60) return `om ${minutes}m`;
+
+  const hours = Math.round(ms / 3_600_000);
+  if (hours < 24) return `om ${hours}t`;
+
+  const days = Math.round(ms / 86_400_000);
+  return days === 1 ? 'i morgen' : `om ${days} dage`;
+}
