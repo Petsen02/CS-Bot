@@ -84,11 +84,17 @@ betjene flere streamere uden at de ser hinandens spillere.
 `!hold` viser holdkammeraterne i den igangværende kamp. Spilleren selv
 udelades; man ved godt man er der, og pladsen er bedre brugt på de andre.
 
-**Partyet selv er ikke tilgængeligt.** Data API'et dækker spillere, kampe,
-hold, turneringer, ranglister og hubs — men ingen parties. Har man køet
-sammen, **er** partyet dog det hold man står på i kampen, så svaret er det
-samme så snart kampen findes. `!csbotesea party <nick>` prøver det interne
-API, hvis det nogensinde skulle dukke op dér.
+**Partyet selv kan ikke hentes.** Data API'et dækker spillere, kampe, hold,
+turneringer, ranglister og hubs — ingen parties. Og det interne web-API svarer
+404 på alle seks party-ruter der blev prøvet.
+
+Det er næppe et spørgsmål om at gætte den rigtige rute: et party er privat
+brugertilstand, bundet til den konto der er logget ind. En API-nøgle giver
+adgang til det offentlige, ikke til nogens session. Udadtil findes de data
+ikke.
+
+Har man køet sammen, **er** partyet dog det hold man står på i kampen, så
+svaret er det samme — bare først når kampen findes.
 
 For en ESEA-kamp findes opstillingen først når kamprummet gør — altså fra
 vetoen. Før det er holdet ikke udtaget, og der er bogstaveligt talt intet at
