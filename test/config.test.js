@@ -59,3 +59,52 @@ test('normalizeRegion versaliserer, og de ventede regioner findes', () => {
     assert.ok(REGIONS.has(region), `${region} skal være en gyldig region`);
   }
 });
+
+/**
+ * MÅLT i en rigtig Twitch-chat: klienter hænger usynlige tegn på beskeder for
+ * at omgå dublet-filteret. "!rank Petsen" ankom som "!rank Petsen ␀", og
+ * argumentet blev afvist som ugyldigt navn — eller, når tegnet sad klistret på
+ * navnet, sendt med ind i opslaget og gav 404.
+ */
+test('sanitizeArgument fjerner Twitch-klienters usynlige tegn', async () => {
+  const { sanitizeArgument } = await import('../src/config.js');
+
+  // U+E0000 er det tag-tegn Twitch bruger til dublet-omgåelse.
+  assert.equal(sanitizeArgument('Petsen \u{E0000}'), 'Petsen');
+  assert.equal(sanitizeArgument('Petsen\u{E0000}'), 'Petsen');
+  assert.equal(sanitizeArgument('Petsen​'), 'Petsen', 'zero-width space');
+  assert.equal(sanitizeArgument('Petsen﻿'), 'Petsen', 'BOM');
+  assert.equal(sanitizeArgument('‎Petsen'), 'Petsen', 'retningsmarkør');
+});
+
+test('sanitizeArgument fjerner et indledende @', () => {
+  // Seere skriver "!rank @Petsen" af vane.
+  assert.equal(sanitizeArgument('@Petsen'), 'Petsen');
+  assert.equal(sanitizeArgument('@@Petsen'), 'Petsen');
+  assert.equal(sanitizeArgument('@Petsen \u{E0000}'), 'Petsen');
+});
+
+test('sanitizeArgument lader et rigtigt navn være i fred', () => {
+  assert.equal(sanitizeArgument('Petsen'), 'Petsen');
+  assert.equal(sanitizeArgument('vigg0'), 'vigg0');
+  assert.equal(sanitizeArgument('76561198847373934'), '76561198847373934');
+  // Bindestreger og understreger er gyldige i FACEIT-nicks.
+  assert.equal(sanitizeArgument('-_-_-_-_-_-'), '-_-_-_-_-_-');
+  assert.equal(sanitizeArgument(''), '');
+  assert.equal(sanitizeArgument(null), '');
+});
+
+test('parsePlayerRef renser før den tolker', () => {
+  assert.deepEqual(parsePlayerRef('Petsen \u{E0000}'), { kind: 'nickname', value: 'Petsen' });
+  assert.deepEqual(parsePlayerRef('@Petsen'), { kind: 'nickname', value: 'Petsen' });
+  assert.deepEqual(parsePlayerRef('76561198847373934\u{E0000}'), {
+    kind: 'steam',
+    value: '76561198847373934',
+  });
+});
+
+test('parsePlayerRef afviser stadig en rigtig skrivefejl', () => {
+  // Rensningen må ikke gøre alt gyldigt — to ord er stadig en fejl.
+  assert.equal(parsePlayerRef('Navn Efternavn'), null);
+  assert.equal(parsePlayerRef('\u{E0000}'), null, 'kun usynlige tegn er ingenting');
+});

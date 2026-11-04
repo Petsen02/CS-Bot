@@ -2,7 +2,14 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import tmi from 'tmi.js';
 import { installCrashHandlers, logPaths, logger } from './logger.js';
-import { config, getTwitchConfig, bootstrapChannels, seedPlayers, seedMain } from './config.js';
+import {
+  config,
+  getTwitchConfig,
+  bootstrapChannels,
+  seedPlayers,
+  seedMain,
+  sanitizeArgument,
+} from './config.js';
 import { channels, normalizeChannel } from './channels.js';
 import { TwitchAuth } from './twitchAuth.js';
 import { FaceitError, resolvePlayer } from './faceit.js';
@@ -240,13 +247,17 @@ async function main() {
     try {
       const reply = await handler.run({
         channel: normalizeChannel(channel),
-        argument: rest.join(' ').trim(),
+        argument: sanitizeArgument(rest.join(' ')),
         viewer,
       });
 
       await client.say(channel, truncate(`@${viewer} ${reply}`));
     } catch (error) {
-      logger.warn(`!${command} fejlede: ${error.message}`);
+      // Argumentet logges med escapes, så usynlige tegn kan ses. Uden det
+      // ligner "Petsen" og "Petsen␀" hinanden til forveksling i en log.
+      const argument = rest.join(' ');
+      const shown = argument ? ` (argument: ${JSON.stringify(argument)})` : '';
+      logger.warn(`!${command} fejlede: ${error.message}${shown}`);
       await client.say(channel, `@${viewer} ${explain(error)}`);
     }
   });

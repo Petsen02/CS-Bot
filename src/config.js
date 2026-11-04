@@ -63,6 +63,30 @@ export function normalizeCountry(input) {
 }
 
 /**
+ * Renser det en seer skrev, før det bruges til noget.
+ *
+ * MÅLT i chatten: Twitch-klienter hænger usynlige tegn på beskeder for at
+ * omgå dublet-filteret — oftest U+E0000 fra tag-blokken, efter et mellemrum.
+ * "!rank Petsen" bliver dermed til "!rank Petsen ␀", og argumentet
+ * "Petsen ␀" indeholder et mellemrum og blev afvist som ugyldigt navn. Sidder
+ * tegnet klistret på navnet i stedet, røg det med ind i opslaget og gav 404.
+ *
+ * Fjerner også et indledende @, fordi seere skriver "!rank @Petsen" af vane.
+ */
+export function sanitizeArgument(input) {
+  return String(input ?? '')
+    // Tag-tegn (U+E0000-E007F) — dem Twitch bruger til dublet-omgåelse.
+    .replace(/[\u{E0000}-\u{E007F}]/gu, '')
+    // Variation selectors supplement.
+    .replace(/[\u{E0100}-\u{E01EF}]/gu, '')
+    // Zero-width, retningsmarkører, word joiner, BOM, soft hyphen,
+    // variation selectors og styretegn.
+    .replace(/[\u0000-\u001F\u007F\u00AD\u200B-\u200F\u2060-\u2064\uFE00-\uFE0F\uFEFF]/g, '')
+    .replace(/^@+/, '')
+    .trim();
+}
+
+/**
  * Hvad der blev skrevet efter kommandoen: et FACEIT-nick, et SteamID64 eller
  * et link til en Steam-profil.
  *
@@ -72,7 +96,7 @@ export function normalizeCountry(input) {
  * @returns {{ kind: 'steam' | 'nickname', value: string } | null}
  */
 export function parsePlayerRef(input) {
-  const raw = String(input ?? '').trim();
+  const raw = sanitizeArgument(input);
   if (!raw) return null;
 
   // Et SteamID64 er 17 cifre og begynder altid med 7656119.
