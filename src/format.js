@@ -16,10 +16,17 @@ function oneDecimal(value) {
   return (Math.round(value * 10) / 10).toFixed(1);
 }
 
-// K/D skrives med to decimaler i al CS-statistik. 1.4 i stedet for 1.41 ser
-// ud som en afrundingsfejl for folk der er vant til tallet.
+// K/D, K/R og rating skrives med to decimaler i al CS-statistik. 1.4 i stedet
+// for 1.41 ser ud som en afrundingsfejl for folk der er vant til tallet.
 function twoDecimals(value) {
   return (Math.round(value * 100) / 100).toFixed(2);
+}
+
+// Swing er en ændring, så fortegnet er hele informationen: "4.2 swing" siger
+// ikke om runderne blev vundet eller tabt på spillerens konto.
+function signedOneDecimal(value) {
+  const rounded = Math.round(value * 10) / 10;
+  return rounded > 0 ? `+${rounded.toFixed(1)}` : rounded.toFixed(1);
 }
 
 /** "PETSEN LEVEL10: 2347 elo (Rank#412)" */
@@ -79,33 +86,80 @@ export function formatNextRank({ nickname, elo, level, next, wins }) {
 }
 
 /**
- * "PETSEN │ Mirage 13-9 W │ 24-17-6 │ 1.41 K/D │ 94.2 ADR │ 48% HS │ +25 elo"
+ * "PETSEN │ Mirage 13-9 W │ 24-17-6 │ 1.41 K/D │ 0.92 K/R │ 94.2 ADR │ 2451 dmg
+ *  │ 48% HS │ 7 flashed │ 1.18 rating │ +4.2 swing │ +25 elo"
  *
- * Felter uden data udelades i stedet for at vise en nulværdi: ADR er endnu
- * ubekræftet i FACEIT's CS2-svar, og "0.0 ADR" ville læses som et faktum.
+ * Felterne står i prioritetsrækkefølge og tilføjes så længe der er plads.
+ *
+ * Det er ikke pynt: Twitch afviser beskeder over 500 tegn, og en blind
+ * afklipning ville efterlade "+25 el" eller "1.1" — et tal der ser ud som et
+ * faktum men er forkert. Hellere udelade et helt felt end vise et halvt.
+ *
+ * Felter uden data udelades også, frem for at vise en nulværdi: ADR, rating og
+ * swing er alle ubekræftede i FACEIT's svar, og "0.0 ADR" ville læses som
+ * "spillede og lavede ingen skade".
  */
-export function formatLastGame(game) {
-  const parts = [game.nickname];
-
+export function formatLastGame(game, { budget = 420 } = {}) {
   const map = mapName(game.map);
   const score = game.score ? ` ${game.score}` : '';
   const outcome = game.won === true ? ' W' : game.won === false ? ' L' : '';
-  if (map) parts.push(`${map}${score}${outcome}`.trim());
-  else if (score || outcome) parts.push(`${score}${outcome}`.trim());
+  const head = `${map ?? ''}${score}${outcome}`.trim();
 
-  if (Number.isFinite(game.kills) && Number.isFinite(game.deaths)) {
-    const assists = Number.isFinite(game.assists) ? `-${game.assists}` : '';
-    parts.push(`${game.kills}-${game.deaths}${assists}`);
+  // Rækkefølgen er prioriteten. Det der ryger først, når pladsen er knap, er
+  // det nederste.
+  const fields = [
+    head || null,
+
+    Number.isFinite(game.kills) && Number.isFinite(game.deaths)
+      ? `${game.kills}-${game.deaths}${Number.isFinite(game.assists) ? `-${game.assists}` : ''}`
+      : null,
+
+    Number.isFinite(game.kd) ? `${twoDecimals(game.kd)} K/D` : null,
+    Number.isFinite(game.kr) ? `${twoDecimals(game.kr)} K/R` : null,
+    Number.isFinite(game.adr) ? `${oneDecimal(game.adr)} ADR` : null,
+    Number.isFinite(game.damage) ? `${Math.round(game.damage)} dmg` : null,
+    Number.isFinite(game.hs) ? `${Math.round(game.hs)}% HS` : null,
+    Number.isFinite(game.flashed) ? `${Math.round(game.flashed)} flashed` : null,
+
+    // FACEIT's egne impact-tal. Rating er den mest interessante linje i hele
+    // svaret, hvis den findes i API'et.
+    Number.isFinite(game.rating) ? `${twoDecimals(game.rating)} rating` : null,
+    Number.isFinite(game.swing) ? `${signedOneDecimal(game.swing)} swing` : null,
+
+    // Vores eget målte tal — det eneste felt her FACEIT ikke leverer.
+    Number.isFinite(game.eloDelta) ? `${formatEloDelta(game.eloDelta)} elo` : null,
+
+    Number.isFinite(game.utilDamage) ? `${Math.round(game.utilDamage)} util dmg` : null,
+    formatMultiKill(game),
+    Number.isFinite(game.entryKills) && game.entryKills > 0 ? `${game.entryKills} entry` : null,
+    Number.isFinite(game.clutches) && game.clutches > 0 ? `${game.clutches} clutch` : null,
+    Number.isFinite(game.mvps) && game.mvps > 0 ? `${game.mvps} MVP` : null,
+  ].filter(Boolean);
+
+  if (fields.length === 0) return `${game.nickname} — ingen statistik på seneste kamp`;
+
+  // Byg op felt for felt, så grænsen rammes mellem felter og aldrig inde i et.
+  let message = game.nickname;
+  for (const field of fields) {
+    const candidate = `${message}${SEP}${field}`;
+    if (candidate.length > budget) break;
+    message = candidate;
   }
 
-  if (Number.isFinite(game.kd)) parts.push(`${twoDecimals(game.kd)} K/D`);
-  if (Number.isFinite(game.adr)) parts.push(`${oneDecimal(game.adr)} ADR`);
-  if (Number.isFinite(game.hs)) parts.push(`${Math.round(game.hs)}% HS`);
-  if (Number.isFinite(game.eloDelta)) parts.push(`${formatEloDelta(game.eloDelta)} elo`);
+  return message;
+}
 
-  if (parts.length === 1) return `${game.nickname} — ingen statistik på seneste kamp`;
-
-  return parts.join(SEP);
+/**
+ * Den bedste multi-kill i kampen, hvis der var en.
+ *
+ * Kun den højeste nævnes: "1 ace │ 2 quad │ 3 triple" ville fylde tre felter
+ * med noget der kan siges i ét.
+ */
+export function formatMultiKill({ aces, quads, triples }) {
+  if (Number.isFinite(aces) && aces > 0) return aces === 1 ? '1 ace' : `${aces} aces`;
+  if (Number.isFinite(quads) && quads > 0) return `${quads} quad`;
+  if (Number.isFinite(triples) && triples > 0) return `${triples} triple`;
+  return null;
 }
 
 /**

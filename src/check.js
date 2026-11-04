@@ -30,6 +30,16 @@ const WARN = ' obs  ';
 
 let failures = 0;
 
+/** Spillerens rå player_stats, til at vise de faktiske nøglenavne. */
+function findPlayerRow(payload, playerId) {
+  for (const team of payload?.rounds?.[0]?.teams ?? []) {
+    for (const entry of team.players ?? []) {
+      if (entry.player_id === playerId) return entry.player_stats ?? {};
+    }
+  }
+  return null;
+}
+
 function report(status, label, detail) {
   if (status === FAIL) failures += 1;
   console.log(`[${status}] ${label}${detail ? ` — ${detail}` : ''}`);
@@ -144,12 +154,44 @@ async function run() {
       } else {
         expect('map', stats.map);
         expect('score', stats.score, { required: false });
+        expect('runder', stats.rounds, { required: false });
         expect('kills', stats.kills);
         expect('deaths', stats.deaths);
+        expect('assists', stats.assists, { required: false });
         expect('K/D', stats.kd, { required: false });
-        // ADR er den mest usikre: den var ikke bekræftet for CS2.
+        expect('K/R', stats.kr, { required: false });
         expect('ADR', stats.adr, { required: false });
+        expect('total damage', stats.damage, { required: false });
         expect('HS%', stats.hs, { required: false });
+        expect('enemies flashed', stats.flashed, { required: false });
+        expect('utility damage', stats.utilDamage, { required: false });
+        expect('MVPs', stats.mvps, { required: false });
+        expect('entry kills', stats.entryKills, { required: false });
+        expect('clutches', stats.clutches, { required: false });
+
+        // FACEIT Rating og Round Swing kom til med Season 8 og er de to mest
+        // usikre felter i hele botten: de kan vise sig kun at findes i
+        // web-UI'et. Derfor får de deres egen afsnit, og de rå nøgler printes
+        // så det rigtige navn kan læses af hvis vores gæt var forkert.
+        console.log('');
+        const rating = expect('FACEIT Rating', stats.rating, { required: false });
+        const swing = expect('Round Swing', stats.swing, { required: false });
+
+        if (!rating || !swing) {
+          const row = findPlayerRow(raw, player.playerId);
+          console.log('         Data API\'et havde ikke begge. Alle nøgler i player_stats:');
+          console.log(`         ${Object.keys(row ?? {}).join(', ') || '(ingen)'}`);
+          console.log('         Står rating/swing på listen under et andet navn, tilføj det');
+          console.log('         i readMatchStats i src/commands.js. Står de slet ikke, findes');
+          console.log('         de kun i FACEIT\'s web-UI, og !lastgame udelader dem.');
+        }
+
+        if (Number.isFinite(stats.swing)) {
+          // Enheden er ubekræftet: FACEIT viser swing som en ændring i
+          // vinderchance, så procent er sandsynligt, men ikke bevist.
+          console.log(`         swing rå værdi: ${stats.swing} `
+            + `(${Math.abs(stats.swing) <= 100 ? 'kunne være procent' : 'næppe procent'})`);
+        }
       }
     }
   }

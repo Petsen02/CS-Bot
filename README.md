@@ -55,7 +55,7 @@ betjene flere streamere uden at de ser hinandens spillere.
 | `!ranks` | Kanalens liste, nummereret, højeste elo først |
 | `!session` / `!gains` `[nick]` | `PETSEN: 3W 2L (+47 elo) 🟩🟩🟥🟩🟥` for i dag |
 | `!nextrank [nick]` | `PETSEN LEVEL9: 1920 elo │ mangler 81 elo til LEVEL10 (ca 4 wins)` |
-| `!lastgame [nick]` | `PETSEN │ Mirage 13-9 W │ 24-17-6 │ 1.41 K/D │ 94.2 ADR │ 48% HS │ +25 elo` |
+| `!lastgame [nick]` | Fuld statistiklinje — se nedenfor |
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
 | `!top [nick]` | `PETSEN LEVEL10: 2347 elo │ DK #12 │ EU #418` |
 | `!maps [nick]` | `PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)` |
@@ -74,6 +74,35 @@ Der står `EU`, ikke "verden": **FACEIT's ranglister er altid regionale**, da
 regionen er en del af API-stien. Der findes ikke noget globalt tal at hente, og
 at skrive "verden" over en regionsplacering ville være en påstand API'et ikke
 kan bakke op.
+
+### Hvad `!lastgame` viser
+
+```
+PETSEN │ Mirage 13-9 W │ 24-17-6 │ 1.41 K/D │ 1.09 K/R │ 94.2 ADR │ 2451 dmg
+       │ 48% HS │ 7 flashed │ 1.18 rating │ +4.2 swing │ +25 elo │ 312 util dmg
+       │ 1 ace │ 4 entry │ 2 clutch │ 5 MVP
+```
+
+Felterne står i prioritetsrækkefølge og tilføjes så længe der er plads. Det er
+ikke pynt: Twitch afviser beskeder over 500 tegn, og en blind afklipning ville
+efterlade `+25 el` eller `1.1` — tal der ser ud som fakta, men er forkerte.
+Derfor rammes grænsen altid mellem felter, og et helt felt udelades frem for at
+vise et halvt. Med alt udfyldt er linjen omkring 190 tegn, så det sker sjældent.
+
+Felter uden data udelades også. `0.0 ADR` ville læses som "spillede og lavede
+ingen skade", hvor sandheden er at FACEIT ikke oplyste det.
+
+**`rating` og `swing` er FACEIT's egne impact-tal.** FACEIT Rating måler hvordan
+dine handlinger ændrede holdets vinderchance, og Round Swing er metrikken den
+beregnes af. Begge kom til med FACEIT Season 8. De er **ikke bekræftet at
+findes i Data API'et** — de kan vise sig kun at være i web-UI'et. `npm run check`
+siger det direkte og printer alle nøgler i `player_stats`, så det rigtige navn
+kan læses af hvis vores gæt var forkert. Findes de ikke, udelades de to felter,
+og resten af linjen er uændret.
+
+`K/R` og `ADR` udregnes fra kills, damage og rundeantal hvis FACEIT ikke sender
+dem direkte — begge kan udledes præcist, så der er ingen grund til et hul.
+`elo` er det eneste felt FACEIT ikke leverer: det er målt af botten selv.
 
 ### ESEA er en holdliga
 

@@ -212,7 +212,12 @@ export async function commandNextRank({ channel, argument }) {
  *
  * Skemaet er dybt nøstet og ubekræftet, så hvert niveau tjekkes. Nøglerne i
  * player_stats er menneskelæsbare strenge med mellemrum ("K/D Ratio"), hvilket
- * er grunden til opslagene herunder ser så klodsede ud.
+ * er grunden til opslagene herunder ser så klodsede ud. Hvert felt prøver flere
+ * plausible navne, fordi FACEIT har tilføjet statistik over tid og de ældre og
+ * nyere navne optræder side om side i community-wrappere.
+ *
+ * Alt der ikke blev fundet bliver null, ikke nul: et felt der mangler skal
+ * udelades fra svaret, ikke vises som "0".
  */
 export function readMatchStats(payload, playerId) {
   const round = payload?.rounds?.[0];
@@ -235,25 +240,73 @@ export function readMatchStats(payload, playerId) {
 
       const kills = num('Kills');
       const deaths = num('Deaths');
+      const rounds = num('Rounds') ?? Number(roundStats.Rounds) ?? null;
+
+      // K/D og K/R udregnes hvis de ikke kom med: begge kan udledes præcist
+      // fra tal vi allerede har, så der er ingen grund til at vise et hul.
       const kd = num('K/D Ratio') ?? (deaths ? kills / deaths : null);
+      const kr = num('K/R Ratio')
+        ?? (Number.isFinite(kills) && rounds ? kills / rounds : null);
+
+      const damage = num('Damage', 'Total Damage');
+      const adr = num('ADR', 'Average Damage per Round')
+        ?? (Number.isFinite(damage) && rounds ? damage / rounds : null);
 
       return {
         map: roundStats.Map ?? roundStats.map ?? null,
         score: roundStats.Score ?? roundStats.score ?? null,
+        rounds,
         won: entry.player_stats?.Result !== undefined
           ? String(entry.player_stats.Result) === '1'
           : null,
+
         kills,
         deaths,
         assists: num('Assists'),
         kd,
-        adr: num('ADR', 'Average Damage per Round'),
+        kr,
+
+        adr,
+        damage,
         hs: num('Headshots %'),
+
+        // Utility. "Enemies Flashed" er antallet over hele kampen; nogle svar
+        // har kun en pr-runde-værdi, som så ganges op.
+        flashed: num('Enemies Flashed', 'Flash Count')
+          ?? (rounds ? mul(num('Enemies Flashed per Round'), rounds) : null),
+        utilDamage: num('Utility Damage'),
+
+        // FACEIT Rating og Round Swing kom til med Season 8. De er IKKE
+        // bekræftet at findes i Data API'et — de kan vise sig kun at være i
+        // web-UI'et. Derfor mange kandidatnavne, og derfor nævner check.js dem
+        // udtrykkeligt.
+        rating: num('FACEIT Rating', 'Rating', 'Match Rating', 'faceit_rating'),
+        // Enheden er ubekræftet. FACEIT viser swing som en ændring i
+        // vinderchance, altså formentlig procent, men det bekræftes først af
+        // et rigtigt svar — derfor skrives tallet uden enhed.
+        swing: num('Round Swing', 'Swing', 'Average Round Swing', 'round_swing'),
+
+        mvps: num('MVPs'),
+        aces: num('Penta Kills'),
+        quads: num('Quadro Kills'),
+        triples: num('Triple Kills'),
+        entryKills: num('Entry Count', 'First Kills'),
+        clutches: add(num('1v1Wins'), num('1v2Wins')),
       };
     }
   }
 
   return null;
+}
+
+/** Hjælpere der bevarer null frem for at lave det om til 0. */
+function mul(value, factor) {
+  return Number.isFinite(value) && Number.isFinite(factor) ? Math.round(value * factor) : null;
+}
+
+function add(a, b) {
+  if (!Number.isFinite(a) && !Number.isFinite(b)) return null;
+  return (Number.isFinite(a) ? a : 0) + (Number.isFinite(b) ? b : 0);
 }
 
 export async function commandLastGame({ channel, argument }) {
