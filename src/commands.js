@@ -13,6 +13,7 @@ import {
   getPlayerStats,
   getRanking,
   getPlayerTeams,
+  getTeam,
   isFinished,
   isLive,
 } from './faceit.js';
@@ -44,6 +45,8 @@ import {
   formatTop,
   formatMaps,
   formatEsea,
+  formatTeam,
+  formatEseaTeam,
   formatNextMatch,
   formatNicknames,
 } from './format.js';
@@ -364,50 +367,133 @@ export async function commandLastGame({ channel, argument }) {
  * historikken bruges og dens status tjekkes. Det er bedste bud, ikke en
  * garanti: en kamp der netop er startet kan mangle i historikken.
  */
+/**
+ * Spillerens igangværende kamp, hvis der er en.
+ *
+ * FACEIT har intet "nuværende kamp for spiller"-endpoint, så den nyeste post i
+ * historikken bruges og dens status tjekkes. Det er bedste bud, ikke en
+ * garanti: en kamp der netop er startet kan mangle i historikken.
+ */
+async function findLiveMatch(playerId) {
+  const history = await getHistory(playerId, { limit: 3 });
+  const live = history.find((item) => isLive(item.status));
+  if (!live?.match_id) return null;
+
+  try {
+    return await getMatch(live.match_id);
+  } catch (error) {
+    logger.warn(`live kamp fejlede: ${error.message}`);
+    return null;
+  }
+}
+
+/** Spillerens eget hold i en kamp, og de øvrige i den. */
+function factionsOf(match, playerId) {
+  const own = [];
+  const others = [];
+
+  for (const [key, faction] of Object.entries(match?.teams ?? {})) {
+    const roster = faction?.roster ?? faction?.players ?? [];
+    const isOwn = roster.some((p) => (p?.player_id ?? p?.id) === playerId);
+
+    const people = roster.map((p) => ({
+      playerId: p?.player_id ?? p?.id ?? null,
+      nickname: p?.nickname ?? p?.name ?? null,
+      elo: Number(p?.game_skill_level_elo ?? p?.elo ?? p?.faceit_elo) || null,
+      level: Number(p?.game_skill_level ?? p?.skill_level) || null,
+    }));
+
+    (isOwn ? own : others).push({ key, name: faction?.name ?? null, people });
+  }
+
+  return { own: own[0] ?? null, others };
+}
+
 export async function commandLobby({ channel, argument }) {
   const { player } = await resolveTarget(channel, argument);
 
-  const history = await getHistory(player.playerId, { limit: 3 });
-  const live = history.find((item) => isLive(item.status));
+  const match = await findLiveMatch(player.playerId);
+  if (!match) return formatLobby({ nickname: player.nickname, teams: [] });
 
-  if (!live) return formatLobby({ nickname: player.nickname, teams: [] });
+  const { own, others } = factionsOf(match, player.playerId);
 
-  let match;
-  try {
-    match = await getMatch(live.match_id);
-  } catch (error) {
-    logger.warn(`!lobby match fejlede: ${error.message}`);
-    return formatLobby({ nickname: player.nickname, teams: [] });
-  }
-
-  const teams = [];
-  const factions = Object.entries(match?.teams ?? {});
-
-  for (const [key, faction] of factions) {
-    const roster = faction?.roster ?? faction?.players ?? [];
-    const own = roster.some((p) => (p?.player_id ?? p?.id) === player.playerId);
-
-    const elos = roster
-      .map((p) => Number(p?.game_skill_level_elo ?? p?.elo ?? p?.faceit_elo))
-      .filter((value) => Number.isFinite(value) && value > 0);
-
-    teams.push({
-      label: own ? `${player.nickname}s hold` : (faction?.name ?? `hold ${key}`),
+  const teams = [own, ...others].filter(Boolean).map((faction) => {
+    const elos = faction.people.map((p) => p.elo).filter((e) => Number.isFinite(e) && e > 0);
+    return {
+      label: faction === own ? `${player.nickname}s hold` : (faction.name ?? `hold ${faction.key}`),
       average: elos.length > 0 ? elos.reduce((a, b) => a + b, 0) / elos.length : null,
       counted: elos.length,
-      size: roster.length,
-      own,
-    });
-  }
-
-  // Eget hold først, så streameren ikke skal lede efter sit eget tal.
-  teams.sort((a, b) => Number(b.own) - Number(a.own));
+      size: faction.people.length,
+      own: faction === own,
+    };
+  });
 
   return formatLobby({
     nickname: player.nickname,
     map: match?.voting?.map?.pick?.[0] ?? match?.map ?? null,
     status: match?.status,
     teams,
+  });
+}
+
+/**
+ * Hvem spilleren er i kamp med lige nu.
+ *
+ * Holdkammeraterne i den igangværende kamp. Et FACEIT-party er ikke i Data
+ * API'et, men har man køet sammen, er partyet netop det hold man står på — så
+ * i praksis svarer det på det samme.
+ */
+export async function commandTeam({ channel, argument }) {
+  const { player } = await resolveTarget(channel, argument);
+
+  const match = await findLiveMatch(player.playerId);
+  if (!match) return formatTeam({ nickname: player.nickname, mates: [] });
+
+  const { own } = factionsOf(match, player.playerId);
+
+  // Spilleren selv udelades — man ved godt man er der.
+  const mates = (own?.people ?? []).filter((p) => p.playerId !== player.playerId && p.nickname);
+
+  return formatTeam({
+    nickname: player.nickname,
+    map: match?.voting?.map?.pick?.[0] ?? match?.map ?? null,
+    mates,
+  });
+}
+
+/**
+ * ESEA-holdets faste trup.
+ *
+ * Holdet findes samme vej som !esea: gennem de turneringer spillerens egne
+ * kampe hører til, fordi den kørende sæson ikke findes andre steder.
+ */
+export async function commandEseaTeam({ channel, argument }) {
+  const { player } = await resolveTarget(channel, argument);
+
+  const [teams, played] = await Promise.all([
+    getPlayerTeams(player.playerId),
+    recentCompetitions(player.playerId).catch(() => []),
+  ]);
+
+  if (teams.length === 0) {
+    return formatEseaTeam({ nickname: player.nickname, members: [] });
+  }
+
+  const competitions = played
+    .filter((c) => c.id && c.type === 'championship')
+    .map((c) => ({ id: c.id, name: c.name }));
+
+  const standing = await findTeamStanding(teams.map((t) => t.teamId), competitions);
+  if (!standing?.teamId) {
+    return formatEseaTeam({ nickname: player.nickname, members: [] });
+  }
+
+  const team = await getTeam(standing.teamId);
+
+  return formatEseaTeam({
+    nickname: player.nickname,
+    teamName: team.name ?? standing.teamName,
+    members: team.members.map((m) => m.nickname),
   });
 }
 

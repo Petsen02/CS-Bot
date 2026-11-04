@@ -319,6 +319,47 @@ export function formatNextMatch({ nickname, match }) {
   return parts.join(SEP);
 }
 
+/**
+ * "Petsen │ Mirage │ vigg0 LVL10 · Rasmus LVL8 · Jonas LVL7 · Mikkel LVL6"
+ *
+ * Medspillerne i den igangværende kamp. Spilleren selv udelades — man ved godt
+ * man er der, og pladsen er bedre brugt på de andre.
+ */
+export function formatTeam({ nickname, map, mates }) {
+  if (!mates || mates.length === 0) {
+    return `${nickname} er ikke i en FACEIT-kamp lige nu`;
+  }
+
+  const parts = [nickname];
+
+  const name = mapName(map);
+  if (name) parts.push(name);
+
+  parts.push(mates
+    .map((mate) => {
+      const level = mate.level ?? levelFor(mate.elo);
+      const label = level ? ` ${formatLevel(level, config.rankStyle, config.rankEmotePrefix)}` : '';
+      return `${mate.nickname}${label}`;
+    })
+    .join(' · '));
+
+  return parts.join(SEP);
+}
+
+/**
+ * "vigg0 │ Elitemilijoet │ Rasmus · Jonas · Mikkel · Anders"
+ *
+ * ESEA-holdets faste trup. Ingen levels: holdlisten indeholder dem ikke, og et
+ * opslag pr. spiller ville koste fem kald for at pynte på en linje.
+ */
+export function formatEseaTeam({ nickname, teamName, members }) {
+  if (!members || members.length === 0) {
+    return `${nickname} er ikke på et ESEA-hold lige nu`;
+  }
+
+  return [nickname, teamName ?? 'ESEA-hold', members.join(' · ')].join(SEP);
+}
+
 /** Hjælper til playerlist og lignende: en læsbar liste af nicks. */
 export function formatNicknames(players) {
   if (players.length === 0) return 'listen er tom';

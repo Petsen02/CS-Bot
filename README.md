@@ -70,14 +70,25 @@ betjene flere streamere uden at de ser hinandens spillere.
 | `!nextrank [nick]` | `PETSEN LVL9 1920 elo │ mangler 81 elo til LVL10 (ca 4 wins)` |
 | `!lastgame [nick]` | Fuld statistiklinje — se nedenfor |
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
+| `!hold` / `!team` `[nick]` | `Petsen │ Mirage │ vigg0 LVL10 · Rasmus LVL9 · Jonas LVL7` |
+| `!eseahold` / `!eseateam` `[nick]` | `vigg0 │ Elitemilijoet │ vigg0 · Rasmus · Jonas · Mikkel` |
 | `!top [nick]` | `PETSEN LVL10 2347 elo │ DK #12 │ EU #418` |
 | `!maps [nick]` | `PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)` |
 | `!esea [nick]` | `vigg0 │ ESEA S59 Main │ Elitemilijoet 5-4 │ #25 af 76 │ 15 pts` |
 | `!næsteesea [nick]` | `vigg0 │ ESEA S59 Main │ Elitemilijoet vs Astralis Talent │ 06/11/26 kl 20:00 │ om 2 dage` |
 
 
-`!nextesea` er samme kommando som `!næsteesea`, for de tastaturer hvor æ er
-besværligt.
+`!nextesea`, `!team` og `!eseateam` er samme kommandoer som `!næsteesea`,
+`!hold` og `!eseahold` — dansk og engelsk, så ingen skal gætte.
+
+`!hold` viser holdkammeraterne i den igangværende kamp. Et FACEIT-party er
+ikke i Data API'et, men har man køet sammen, **er** partyet det hold man står
+på — så i praksis svarer det på det samme. Spilleren selv udelades fra listen;
+man ved godt man er der, og pladsen er bedre brugt på de andre.
+
+`!eseahold` viser ESEA-holdets faste trup. Uden levels: holdlisten indeholder
+dem ikke, og et opslag pr. spiller ville koste fem kald for at pynte på en
+linje.
 
 Alle kommandoer tager et FACEIT-nick, et SteamID64 eller et link til en
 Steam- eller FACEIT-profil. Uden argument svarer de om kanalens main.

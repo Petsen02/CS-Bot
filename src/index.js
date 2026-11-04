@@ -25,6 +25,8 @@ import {
   commandLobby,
   commandTop,
   commandMaps,
+  commandTeam,
+  commandEseaTeam,
   commandEsea,
   commandNextEsea,
   commandEseaDebug,
@@ -61,6 +63,9 @@ const handlers = new Map([
   ['nextrank', { level: 'everyone', run: commandNextRank }],
   ['lastgame', { level: 'everyone', run: commandLastGame }],
   ['lobby', { level: 'everyone', run: commandLobby }],
+  // Hvem man spiller med lige nu. To navne, dansk og engelsk.
+  ['hold', { level: 'everyone', run: commandTeam }],
+  ['team', { level: 'everyone', run: commandTeam }],
   // Erstatter LoL-bottens !chal: viser land og region frem for cutoffs.
   ['top', { level: 'everyone', run: commandTop }],
   ['maps', { level: 'everyone', run: commandMaps }],
@@ -70,6 +75,8 @@ const handlers = new Map([
   // Samme kommando under to navne: æ er besværligt på nogle tastaturer.
   ['næsteesea', { level: 'everyone', run: commandNextEsea }],
   ['nextesea', { level: 'everyone', run: commandNextEsea }],
+  ['eseahold', { level: 'everyone', run: commandEseaTeam }],
+  ['eseateam', { level: 'everyone', run: commandEseaTeam }],
   [`${ADMIN}commands`, { level: 'everyone', run: commandCommands }],
   [`${ADMIN}playerlist`, { level: 'mod', run: commandPlayerList }],
   [`${ADMIN}addplayer`, { level: 'mod', run: commandAddPlayer }],

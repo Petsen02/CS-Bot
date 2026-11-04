@@ -245,3 +245,55 @@ test('formatMaps siger til uden data', () => {
     'PETSEN — ingen map-statistik endnu',
   );
 });
+
+test('formatTeam viser medspillerne med level', async () => {
+  const { formatTeam } = await import('../src/format.js');
+
+  const message = formatTeam({
+    nickname: 'Petsen',
+    map: 'de_mirage',
+    mates: [
+      { nickname: 'vigg0', level: 10 },
+      { nickname: 'Rasmus', elo: 1800 },
+      { nickname: 'Jonas', level: null, elo: null },
+    ],
+  });
+
+  assert.ok(message.includes('Mirage'), message);
+  assert.ok(message.includes('vigg0 LVL10'), message);
+  // Level udledes af elo når det ikke står direkte.
+  assert.ok(message.includes('Rasmus LVL9'), message);
+  // Uden begge dele vises navnet alene frem for et gæt.
+  assert.ok(message.includes('Jonas'), message);
+  assert.ok(!message.includes('Jonas LVL'), message);
+});
+
+test('formatTeam siger til når der ingen kamp er', async () => {
+  const { formatTeam } = await import('../src/format.js');
+
+  assert.equal(
+    formatTeam({ nickname: 'Petsen', mates: [] }),
+    'Petsen er ikke i en FACEIT-kamp lige nu',
+  );
+});
+
+test('formatEseaTeam lister truppen', async () => {
+  const { formatEseaTeam } = await import('../src/format.js');
+
+  const message = formatEseaTeam({
+    nickname: 'vigg0',
+    teamName: 'Elitemilijoet',
+    members: ['vigg0', 'Rasmus', 'Jonas', 'Mikkel', 'Anders'],
+  });
+
+  assert.equal(message, 'vigg0 │ Elitemilijoet │ vigg0 · Rasmus · Jonas · Mikkel · Anders');
+});
+
+test('formatEseaTeam siger til uden hold', async () => {
+  const { formatEseaTeam } = await import('../src/format.js');
+
+  assert.equal(
+    formatEseaTeam({ nickname: 'vigg0', members: [] }),
+    'vigg0 er ikke på et ESEA-hold lige nu',
+  );
+});

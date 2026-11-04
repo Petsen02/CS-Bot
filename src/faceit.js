@@ -390,6 +390,27 @@ export function getChampionshipMatches(championshipId, { type = 'upcoming', limi
       { params: { type, limit } }));
 }
 
+/**
+ * Et holds stamdata, inklusive dets medlemmer.
+ *
+ * Holdlisten står i `members`; feltnavnene pr. spiller er ikke bekræftede, så
+ * de læses defensivt.
+ */
+export function getTeam(teamId) {
+  return statsCache.wrap(`team:${teamId}`, async () => {
+    const payload = await request(`/teams/${encodeURIComponent(teamId)}`);
+
+    const members = (payload?.members ?? payload?.roster ?? [])
+      .map((item) => ({
+        playerId: item?.user_id ?? item?.player_id ?? item?.id ?? null,
+        nickname: item?.nickname ?? item?.name ?? null,
+      }))
+      .filter((member) => member.nickname);
+
+    return { name: payload?.name ?? null, members };
+  });
+}
+
 /** Spillerens hold. Nøglen til at finde dem i en ESEA-division. */
 export function getPlayerTeams(playerId) {
   return statsCache.wrap(`teams:${playerId}`, async () => {
