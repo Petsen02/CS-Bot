@@ -162,6 +162,18 @@ efter mønsteret `ESEA League EU Advanced S55 Qualifier` og fandt kun 59 af de
 543 — 460 har slet ingen sæson i navnet, og den sæson der faktisk kørte var
 ikke blandt dem. Botten svarede derfor om S55 længe efter den var slut.
 
+**Den kørende sæson er ikke i Data API'et.** Målt ad tre veje: organizerens
+championships giver 542 turneringer og ingen igangværende, selv med
+`type=ongoing` og `type=upcoming`; `/teams/{id}/tournaments` giver nul;
+`/teams/{id}/championships` og `/leagues` svarer 404. `!esea` kan derfor kun
+nå afsluttede sæsoner gennem det officielle API.
+
+`!csbotesea web <hold>` prøver FACEIT's interne web-API — det deres eget site
+kører på. Det er **udokumenteret**: ingen versionering, ingen varsel ved
+ændringer. Alt derfra ligger i `src/internal.js`, er begrænset til FACEIT's
+egne værter over https, og fanger sine egne fejl, så en ændret rute kun koster
+`!esea` og aldrig resten af botten.
+
 Turneringerne hentes i flere omgange — `type=ongoing`, `type=upcoming` og
 uden parameter. Uden `type` returnerer endpointet kun afsluttede, og botten
 svarede derfor om en sæson der var slut, selvom holdet spillede. Afviser
@@ -198,7 +210,8 @@ andre bots i samme chat; det kan skiftes med `ADMIN_PREFIX` i `.env`.
 | `!csbotregion EU` | mod | Sætter kanalens region — `EU`, `NA`, `SA`, `AS`, `OCE` |
 | `!csbotcountry dk` | mod | Sætter landet `!top` måler mod |
 | `!csbotesea` | mod | Diagnose: hvad botten ser hos ESEA, og hvor den leder |
-| `!csbotesea <hold>` | mod | Prøver holdets egne ruter — tager et team-id eller et FACEIT-link |
+| `!csbotesea <hold eller nick>` | mod | Prøver holdets ruter, eller viser turneringerne bag en spillers seneste kampe |
+| `!csbotesea web <hold>` | mod | Prøver FACEIT's **interne** web-API — udokumenteret, se nedenfor |
 
 ## Level og elo
 

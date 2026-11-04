@@ -25,6 +25,7 @@ import {
   probeTeamRoutes,
   recentCompetitions,
 } from './esea.js';
+import { probeInternal, teamLeagueCandidates } from './internal.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
   SEP,
@@ -508,7 +509,12 @@ export async function commandEsea({ channel, argument }) {
  * hvorfor !esea siger hvad den siger: hvor mange turneringer der blev hentet,
  * hvor mange der er igangværende, og hvilke den leder i først.
  */
-export async function commandEseaDebug({ channel, argument }) {
+export async function commandEseaDebug({ channel, argument: raw }) {
+  let argument = raw;
+  // "!csbotesea web <noget>" slår over i det interne API.
+  const wantsInternal = /^web\s+/i.test(argument ?? '');
+  if (wantsInternal) argument = argument.replace(/^web\s+/i, '');
+
   // Med et hold-id undersøges holdets egne ruter i stedet. ESEA's kørende
   // sæson findes ikke under organizeren, så den må nås fra holdets side — og
   // hvilke ruter der findes, kan kun afgøres ved at spørge.
@@ -536,6 +542,20 @@ export async function commandEseaDebug({ channel, argument }) {
   }
 
   if (teamId) {
+    // "web <hold>" prøver FACEIT's interne API i stedet for Data API'et.
+    // Udokumenteret, derfor en diagnose frem for noget der køres i det stille.
+    if (wantsInternal) {
+      const results = await probeInternal(teamLeagueCandidates(teamId));
+      const ok = results.filter((r) => r.status === 200 && r.shape !== 'tomt');
+
+      if (ok.length === 0) {
+        const codes = [...new Set(results.map((r) => r.status || 'net'))].join('/');
+        return `internt API${SEP}ingen af ${results.length} ruter svarede brugbart (${codes})`;
+      }
+
+      return ok.map((r) => `${r.path} → ${r.shape}`).join(SEP);
+    }
+
     const results = await probeTeamRoutes(teamId);
 
     const parts = results.map((r) => {

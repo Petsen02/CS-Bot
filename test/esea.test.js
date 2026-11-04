@@ -163,3 +163,33 @@ test('parseTeamId afviser alt der ikke er et id', async () => {
   assert.equal(parseTeamId(''), null);
   assert.equal(parseTeamId(null), null);
 });
+
+/**
+ * Det interne web-API er udokumenteret og tages kun i brug fordi Data API'et
+ * ikke udstiller den kørende ESEA-sæson. Værtsbegrænsningen findes så en
+ * chatkommando aldrig kan blive til et åbent hent-hvad-som-helst.
+ */
+test('fetchInternal afviser alt der ikke er FACEIT over https', async () => {
+  const { fetchInternal } = await import('../src/internal.js');
+
+  for (const url of [
+    'https://example.com/api/x',
+    'http://www.faceit.com/api/x',
+    'https://evil.faceit.com.attacker.net/api/x',
+    'file:///etc/passwd',
+    'ikke en url',
+  ]) {
+    const { status } = await fetchInternal(url);
+    assert.equal(status, 0, `måtte ikke hentes: ${url}`);
+  }
+});
+
+test('describeBody viser formen uden at dumpe hele svaret', async () => {
+  const { describeBody } = await import('../src/internal.js');
+
+  // FACEIT pakker nyttelasten i payload; den indre form er den interessante.
+  assert.equal(describeBody({ payload: { leagues: [] }, code: 'OK' }), 'payload,code → leagues');
+  assert.equal(describeBody([1, 2, 3]), 'array(3)');
+  assert.equal(describeBody(null), 'tomt');
+  assert.equal(describeBody(undefined), 'tomt');
+});
