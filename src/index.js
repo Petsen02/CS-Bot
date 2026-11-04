@@ -12,6 +12,7 @@ import {
 } from './config.js';
 import { channels, normalizeChannel } from './channels.js';
 import { TwitchAuth } from './twitchAuth.js';
+import { gitRevision } from './version.js';
 import { FaceitError, resolvePlayer } from './faceit.js';
 import { store } from './store.js';
 import { startTracker } from './tracker.js';
@@ -195,6 +196,8 @@ async function main() {
   // Gem målt elo før processen går ned, uanset hvordan den går ned.
   installCrashHandlers(() => store.save());
 
+  const revision = gitRevision();
+  logger.info(`version: ${revision ?? 'ukendt'}`);
   logger.info(`logs: ${logPaths.logs}`);
   logger.info(`crash reports: ${logPaths.crashes}`);
 

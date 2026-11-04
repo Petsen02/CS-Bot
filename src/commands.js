@@ -1,4 +1,5 @@
 import { config, parsePlayerRef } from './config.js';
+import { gitRevision } from './version.js';
 import { channels } from './channels.js';
 import { store } from './store.js';
 import { logger } from './logger.js';
@@ -661,7 +662,10 @@ async function eseaOverview(channel) {
 // ---- Admin ---------------------------------------------------------------
 
 export function commandCommands() {
-  return `Kommandoer: ${config.wikiUrl}`;
+  // Versionen med: "har serveren hentet den nye kode" skal kunne besvares
+  // fra chatten, ikke ved at lede efter en ændring i opførslen.
+  const revision = gitRevision();
+  return `Kommandoer: ${config.wikiUrl}${revision ? `${SEP}version ${revision}` : ''}`;
 }
 
 export function commandPlayerList({ channel }) {
