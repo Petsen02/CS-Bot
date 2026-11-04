@@ -76,21 +76,30 @@ export function winsNeeded(needed, averageGain) {
 }
 
 /**
+ * Standardnavnet på 7TV-emotesne: LVL1 … LVL10.
+ *
+ * Præfikset er indstilleligt, fordi det er en egenskab ved kanalens emote-sæt,
+ * ikke ved botten. Første gæt her var LEVEL, og sættet hed LVL — den slags
+ * skal kunne rettes i .env frem for i koden.
+ */
+export const DEFAULT_EMOTE_PREFIX = 'LVL';
+
+/**
  * Levelet som det skrives i chatten.
  *
- * "emotes" skriver LEVEL7, som 7TV bytter til et ikon hos seere med
- * udvidelsen. Uden den læses det som almindelig tekst, hvilket stadig virker.
+ * "emotes" skriver LVL7, som 7TV bytter til et ikon hos seere med udvidelsen.
+ * Uden den læses det som almindelig tekst, hvilket stadig virker.
  * "letters" er til kanaler uden emote-sættet.
  */
-export function formatLevel(level, style) {
+export function formatLevel(level, style, prefix = DEFAULT_EMOTE_PREFIX) {
   if (level === null) return '';
-  return style === 'letters' ? `L${level}` : `LEVEL${level}`;
+  return style === 'letters' ? `L${level}` : `${prefix}${level}`;
 }
 
-/** "PETSEN LEVEL10: 2347 elo" / "PETSEN L10 2347elo" */
-export function formatPlayerElo({ nickname, elo, level }, style) {
+/** "PETSEN LVL10: 2347 elo" / "PETSEN L10 2347elo" */
+export function formatPlayerElo({ nickname, elo, level }, style, prefix = DEFAULT_EMOTE_PREFIX) {
   const shown = level ?? levelFor(elo);
-  const label = formatLevel(shown, style);
+  const label = formatLevel(shown, style, prefix);
 
   if (!Number.isFinite(elo)) return `${nickname} ${label}`.trim();
 

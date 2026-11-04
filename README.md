@@ -64,13 +64,13 @@ betjene flere streamere uden at de ser hinandens spillere.
 
 | Kommando | Svar |
 |---|---|
-| `!rank [nick]` | `PETSEN LEVEL10: 2347 elo` — top 1000 i regionen får også `(Rank#412)` |
+| `!rank [nick]` | `PETSEN LVL10: 2347 elo` — top 1000 i regionen får også `(Rank#412)` |
 | `!ranks` | Kanalens liste, nummereret, højeste elo først |
 | `!session` / `!gains` `[nick]` | `PETSEN: 3W 2L (+47 elo) 🟩🟩🟥🟩🟥` for i dag |
-| `!nextrank [nick]` | `PETSEN LEVEL9: 1920 elo │ mangler 81 elo til LEVEL10 (ca 4 wins)` |
+| `!nextrank [nick]` | `PETSEN LVL9: 1920 elo │ mangler 81 elo til LVL10 (ca 4 wins)` |
 | `!lastgame [nick]` | Fuld statistiklinje — se nedenfor |
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
-| `!top [nick]` | `PETSEN LEVEL10: 2347 elo │ DK #12 │ EU #418` |
+| `!top [nick]` | `PETSEN LVL10: 2347 elo │ DK #12 │ EU #418` |
 | `!maps [nick]` | `PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)` |
 | `!esea [nick]` | `vigg0 │ ESEA S55 Advanced │ SPARTA 8-0 │ #1 af 16 │ 24 pts` |
 
@@ -219,18 +219,22 @@ Skrivninger er atomare, og tilstanden gemmes også ved SIGTERM og nedbrud.
 
 ## Rang-ikoner med 7TV
 
-Botten skriver levelet som et almindeligt ord — `LEVEL10` — og 7TV bytter det
+Botten skriver levelet som et almindeligt ord — `LVL10` — og 7TV bytter det
 ud med et ikon hos dem der har udvidelsen installeret. Navnene skal være
 præcis disse, med store bogstaver — 7TV skelner:
 
 ```
-LEVEL1  LEVEL2  LEVEL3  LEVEL4  LEVEL5  LEVEL6  LEVEL7  LEVEL8  LEVEL9  LEVEL10
+LVL1  LVL2  LVL3  LVL4  LVL5  LVL6  LVL7  LVL8  LVL9  LVL10
 ```
 
 Mangler én af dem, skriver botten bare navnet som tekst på den linje. Uden
-udvidelsen ser seerne `LEVEL10: 2347 elo` som ren tekst, hvilket stadig læses
+udvidelsen ser seerne `LVL10: 2347 elo` som ren tekst, hvilket stadig læses
 fint. Vil du helt undgå ikonerne, sættes `RANK_STYLE=letters`, og så skriver
 botten `L10 2347elo`.
+
+Bruger dit sæt et andet præfiks, sættes `RANK_EMOTE_PREFIX` i `.env` — fx
+`LEVEL` for `LEVEL1 … LEVEL10`. Navnet er en egenskab ved emote-sættet, ikke
+ved botten, så det hører hjemme i konfigurationen.
 
 Et 7TV-sæt med FACEIT-level-ikoner er endnu ikke lavet.
 

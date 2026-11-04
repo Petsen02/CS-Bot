@@ -43,20 +43,20 @@ test('winsNeeded runder op og nægter at gætte uden data', () => {
 });
 
 test('formatLevel følger den valgte stil', () => {
-  assert.equal(formatLevel(10, 'emotes'), 'LEVEL10');
+  assert.equal(formatLevel(10, 'emotes'), 'LVL10');
   assert.equal(formatLevel(10, 'letters'), 'L10');
 });
 
 test('formatPlayerElo skriver begge stilarter', () => {
   const player = { nickname: 'PETSEN', elo: 2347, level: 10 };
-  assert.equal(formatPlayerElo(player, 'emotes'), 'PETSEN LEVEL10: 2347 elo');
+  assert.equal(formatPlayerElo(player, 'emotes'), 'PETSEN LVL10: 2347 elo');
   assert.equal(formatPlayerElo(player, 'letters'), 'PETSEN L10 2347elo');
 });
 
 test('formatPlayerElo udleder level når det mangler', () => {
   assert.equal(
     formatPlayerElo({ nickname: 'X', elo: 1800 }, 'emotes'),
-    'X LEVEL9: 1800 elo',
+    'X LVL9: 1800 elo',
   );
 });
 

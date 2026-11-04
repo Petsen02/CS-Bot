@@ -25,16 +25,16 @@ test('truncate holder sig under Twitch-grænsen', () => {
 test('formatPlayerRank viser placering nær toppen og skjuler den derunder', () => {
   assert.equal(
     formatPlayerRank({ nickname: 'PETSEN', elo: 2347, level: 10, position: 412 }),
-    'PETSEN LEVEL10: 2347 elo (Rank#412)',
+    'PETSEN LVL10: 2347 elo (Rank#412)',
   );
   // Standardgrænsen er 1000, så 9999 er støj og udelades.
   assert.equal(
     formatPlayerRank({ nickname: 'PETSEN', elo: 2347, level: 10, position: 9999 }),
-    'PETSEN LEVEL10: 2347 elo',
+    'PETSEN LVL10: 2347 elo',
   );
   assert.equal(
     formatPlayerRank({ nickname: 'PETSEN', elo: 2347, level: 10, position: null }),
-    'PETSEN LEVEL10: 2347 elo',
+    'PETSEN LVL10: 2347 elo',
   );
 });
 
@@ -99,7 +99,7 @@ test('formatNextRank regner i elo og nævner wins når de kendes', () => {
       next: { level: 10, min: 2001, needed: 81 },
       wins: 4,
     }),
-    `PETSEN LEVEL9: 1920 elo${SEP}mangler 81 elo til LEVEL10 (ca 4 wins)`,
+    `PETSEN LVL9: 1920 elo${SEP}mangler 81 elo til LVL10 (ca 4 wins)`,
   );
 });
 

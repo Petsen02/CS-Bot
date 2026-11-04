@@ -190,6 +190,9 @@ export const config = {
   defaultRegion,
   defaultCountry,
   rankStyle: parseRankStyle(process.env.RANK_STYLE),
+  // Navnet på kanalens 7TV-emotes: LVL1 … LVL10. Indstilleligt, fordi det er
+  // en egenskab ved emote-sættet og ikke ved botten.
+  rankEmotePrefix: (process.env.RANK_EMOTE_PREFIX || 'LVL').trim(),
   timezone: process.env.TIMEZONE || 'Europe/Copenhagen',
   wikiUrl: process.env.WIKI_URL || 'https://github.com/Petsen02/CS-Bot',
   // Placering er kun interessant nær toppen; derover er det støj.

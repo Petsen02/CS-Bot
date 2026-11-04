@@ -31,7 +31,7 @@ function signedOneDecimal(value) {
 
 /** "PETSEN LEVEL10: 2347 elo (Rank#412)" */
 export function formatPlayerRank({ nickname, elo, level, position }) {
-  const base = formatPlayerElo({ nickname, elo, level }, config.rankStyle);
+  const base = formatPlayerElo({ nickname, elo, level }, config.rankStyle, config.rankEmotePrefix);
 
   // Placering vises kun nær toppen. Derover er den støj, og FACEIT's
   // rankings dækker alligevel kun Challenger-feltet.
@@ -75,11 +75,11 @@ export function formatSession({ nickname, results, eloTotal, measuredCount }) {
 
 /** "PETSEN LEVEL9: 1920 elo │ mangler 81 elo til LEVEL10 (ca 4 wins)" */
 export function formatNextRank({ nickname, elo, level, next, wins }) {
-  const base = formatPlayerElo({ nickname, elo, level }, config.rankStyle);
+  const base = formatPlayerElo({ nickname, elo, level }, config.rankStyle, config.rankEmotePrefix);
 
   if (!next) return `${base}${SEP}er på højeste level`;
 
-  const target = formatLevel(next.level, config.rankStyle);
+  const target = formatLevel(next.level, config.rankStyle, config.rankEmotePrefix);
   const estimate = Number.isFinite(wins) && wins > 0 ? ` (ca ${wins} ${wins === 1 ? 'win' : 'wins'})` : '';
 
   return `${base}${SEP}mangler ${next.needed} elo til ${target}${estimate}`;
@@ -202,7 +202,7 @@ export function formatLobby({ nickname, map, teams, status }) {
  * påstand API'et ikke kan bakke op.
  */
 export function formatTop({ nickname, elo, level, country, countryPosition, region, regionPosition, at }) {
-  const parts = [formatPlayerElo({ nickname, elo, level }, config.rankStyle)];
+  const parts = [formatPlayerElo({ nickname, elo, level }, config.rankStyle, config.rankEmotePrefix)];
 
   const places = [];
   if (Number.isFinite(countryPosition) && countryPosition > 0) {
