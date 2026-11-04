@@ -291,3 +291,21 @@ test('formatRelative siger hvor længe der er til', async () => {
   assert.equal(formatRelative(now - 60_000, now), 'i gang nu');
   assert.equal(formatRelative(null, now), '');
 });
+
+test('parseMatchId tager både et id og et room-link', async () => {
+  const { parseMatchId } = await import('../src/esea.js');
+
+  const id = '1-4c44dd02-e343-46b8-a045-400dd2d70a8d';
+  assert.equal(parseMatchId(`https://www.faceit.com/en/cs2/room/${id}`), id);
+  assert.equal(parseMatchId(id), id);
+  assert.equal(parseMatchId(`  ${id}  `), id);
+});
+
+test('parseMatchId afviser alt der ikke er et match-id', async () => {
+  const { parseMatchId } = await import('../src/esea.js');
+
+  assert.equal(parseMatchId('vigg0'), null);
+  assert.equal(parseMatchId('1-4c44dd02'), null, 'for kort');
+  assert.equal(parseMatchId(''), null);
+  assert.equal(parseMatchId(null), null);
+});

@@ -229,6 +229,7 @@ andre bots i samme chat; det kan skiftes med `ADMIN_PREFIX` i `.env`.
 | `!csbotcountry dk` | mod | Sætter landet `!top` måler mod |
 | `!csbotesea` | mod | Diagnose: hvad botten ser hos ESEA, og hvor den leder |
 | `!csbotesea <hold eller nick>` | mod | Prøver holdets ruter, eller viser turneringerne bag en spillers seneste kampe |
+| `!csbotesea <kamp>` | mod | Viser en kamps felter — tager et match-id eller et room-link |
 
 ## Level og elo
 

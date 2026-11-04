@@ -26,6 +26,8 @@ import {
   recentCompetitions,
   parseCompetitionName,
   findNextMatch,
+  parseMatchId,
+  describeMatch,
 } from './esea.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
@@ -573,6 +575,24 @@ export async function commandEseaDebug({ channel, argument: raw }) {
   // sæson findes ikke under organizeren, så den må nås fra holdets side — og
   // hvilke ruter der findes, kan kun afgøres ved at spørge.
   const teamId = parseTeamId(argument);
+
+  // Et match-id eller et room-link: vis hvad kampen indeholder. Findes for at
+  // afgøre hvorfor !næsteesea ikke ser en kamp der står på hjemmesiden.
+  const matchId = teamId ? null : parseMatchId(argument);
+  if (matchId) {
+    const info = await describeMatch(matchId);
+    if (!info) return `Kunne ikke hente kampen ${matchId}`;
+
+    const parts = [`status ${info.status ?? '?'}`];
+    if (info.competition) {
+      parts.push(`${info.competition}${info.competitionType ? ` [${info.competitionType}]` : ''}`);
+    }
+    if (info.competitionId) parts.push(`comp ${info.competitionId.slice(0, 8)}`);
+    parts.push(info.times.length ? info.times.join(' ') : 'INGEN TIDSFELTER');
+    parts.push(info.factions.join(' · ') || 'ingen hold');
+
+    return parts.join(SEP);
+  }
 
   // Et nick i stedet for et hold-id: vis hvilke turneringer spillerens egne
   // kampe hører til. Det er den sidste officielle vej til den kørende sæson.

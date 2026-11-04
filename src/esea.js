@@ -488,3 +488,43 @@ export async function findNextMatch(teamIds, competitions) {
 
   return best;
 }
+
+/** Læser et match-id ud af et rå id eller et faceit.com/...room/...-link. */
+export function parseMatchId(input) {
+  const raw = String(input ?? '').trim();
+  const link = raw.match(/room\/([0-9a-z-]+)/i);
+  const id = link ? link[1] : raw;
+  return /^[0-9]+-[0-9a-f-]{36}$/i.test(id) || /^[0-9a-f-]{36}$/i.test(id) ? id : null;
+}
+
+/**
+ * Hvad en kamp faktisk indeholder.
+ *
+ * !næsteesea finder ingen planlagte kampe selvom der står en på hjemmesiden.
+ * Enten svarer turneringens matches-rute ikke, eller også hedder tidspunktet
+ * og holdene noget andet end gættet. Dette viser svaret som det er.
+ */
+export async function describeMatch(matchId) {
+  const { getMatch } = await import('./faceit.js');
+  const match = await getMatch(matchId);
+  if (!match) return null;
+
+  // Hvilke tidsfelter der faktisk er udfyldt — det afgør hvad der skal læses.
+  const times = ['scheduled_at', 'started_at', 'configured_at', 'finished_at', 'match_start']
+    .filter((key) => match[key] !== undefined && match[key] !== null)
+    .map((key) => `${key}=${match[key]}`);
+
+  const factions = Object.entries(match.teams ?? {}).map(([key, faction]) => {
+    const id = faction?.faction_id ?? faction?.team_id ?? faction?.id ?? null;
+    return `${key}:${faction?.name ?? '?'}${id ? ` ${String(id).slice(0, 8)}` : ' UDEN-ID'}`;
+  });
+
+  return {
+    status: match.status ?? null,
+    competition: match.competition_name ?? null,
+    competitionId: match.competition_id ?? null,
+    competitionType: match.competition_type ?? null,
+    times,
+    factions,
+  };
+}
