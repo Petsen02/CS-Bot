@@ -11,6 +11,7 @@
     "start": "node src/index.js",
     "check": "node src/check.js",
     "probe-esea": "node src/probe-esea.js",
+    "probe-team": "node src/probe-team.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
