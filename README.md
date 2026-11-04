@@ -78,6 +78,12 @@ betjene flere streamere uden at de ser hinandens spillere.
 Alle kommandoer tager et FACEIT-nick, et SteamID64 eller et link til en
 Steam- eller FACEIT-profil. Uden argument svarer de om kanalens main.
 
+Usynlige tegn fjernes først. Twitch-klienter hænger dem på beskeder for at
+omgå dublet-filteret — U+E0000 og U+034F er begge set i praksis — og uden
+rensningen ryger de med ind i opslaget. Botten bruger Unicodes egen
+`Default_Ignorable_Code_Point`, så også de varianter der endnu ikke er dukket
+op bliver fanget. Et indledende `@` fjernes også.
+
 Nicket behøver ikke ramme store og små bogstaver. FACEIT's eget opslag er
 versalfølsomt — `vigg0` findes, `Vigg0` giver 404 — så botten falder tilbage
 til søgningen og tager det resultat der er identisk bortset fra versaler.

@@ -73,6 +73,10 @@ test('normalizeRegion versaliserer, og de ventede regioner findes', () => {
  * navnet, sendt med ind i opslaget og gav 404.
  */
 test('sanitizeArgument fjerner Twitch-klienters usynlige tegn', () => {
+  // Begge disse er set i en rigtig chat.
+  assert.equal(sanitizeArgument('petsen \u034F'), 'petsen', 'combining grapheme joiner');
+  assert.equal(sanitizeArgument('petsen\u034F'), 'petsen');
+
   // U+E0000 er det tag-tegn Twitch bruger til dublet-omgåelse.
   assert.equal(sanitizeArgument('Petsen \u{E0000}'), 'Petsen');
   assert.equal(sanitizeArgument('Petsen\u{E0000}'), 'Petsen');
@@ -111,4 +115,5 @@ test('parsePlayerRef afviser stadig en rigtig skrivefejl', () => {
   // Rensningen må ikke gøre alt gyldigt — to ord er stadig en fejl.
   assert.equal(parsePlayerRef('Navn Efternavn'), null);
   assert.equal(parsePlayerRef('\u{E0000}'), null, 'kun usynlige tegn er ingenting');
+  assert.equal(parsePlayerRef('\u034F'), null);
 });

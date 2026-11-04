@@ -66,22 +66,22 @@ export function normalizeCountry(input) {
  * Renser det en seer skrev, før det bruges til noget.
  *
  * MÅLT i chatten: Twitch-klienter hænger usynlige tegn på beskeder for at
- * omgå dublet-filteret — oftest U+E0000 fra tag-blokken, efter et mellemrum.
- * "!rank Petsen" bliver dermed til "!rank Petsen ␀", og argumentet
- * "Petsen ␀" indeholder et mellemrum og blev afvist som ugyldigt navn. Sidder
- * tegnet klistret på navnet i stedet, røg det med ind i opslaget og gav 404.
+ * omgå dublet-filteret. "!rank Petsen" ankom som "!rank Petsen ␀" — argumentet
+ * indeholdt dermed et mellemrum og blev afvist som ugyldigt navn. Sad tegnet
+ * klistret på navnet, røg det med ind i opslaget og gav 404.
+ *
+ * To forskellige tegn er set i praksis: U+E0000 fra tag-blokken og U+034F,
+ * combining grapheme joiner. Derfor listes der ikke tegn ét ad gangen her —
+ * det er Unicode-egenskaben `Default_Ignorable_Code_Point` der bruges, altså
+ * standardens egen definition af tegn der ikke skal vises. Den dækker også
+ * dem der endnu ikke er dukket op: zero-width, BOM, retningsmarkører,
+ * hangul filler, soft hyphen og resten.
  *
  * Fjerner også et indledende @, fordi seere skriver "!rank @Petsen" af vane.
  */
 export function sanitizeArgument(input) {
   return String(input ?? '')
-    // Tag-tegn (U+E0000-E007F) — dem Twitch bruger til dublet-omgåelse.
-    .replace(/[\u{E0000}-\u{E007F}]/gu, '')
-    // Variation selectors supplement.
-    .replace(/[\u{E0100}-\u{E01EF}]/gu, '')
-    // Zero-width, retningsmarkører, word joiner, BOM, soft hyphen,
-    // variation selectors og styretegn.
-    .replace(/[\u0000-\u001F\u007F\u00AD\u200B-\u200F\u2060-\u2064\uFE00-\uFE0F\uFEFF]/g, '')
+    .replace(/[\p{Default_Ignorable_Code_Point}\p{Cc}\p{Cf}]/gu, '')
     .replace(/^@+/, '')
     .trim();
 }
