@@ -1,3 +1,5 @@
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import tmi from 'tmi.js';
 import { installCrashHandlers, logPaths, logger } from './logger.js';
 import { config, getTwitchConfig, bootstrapChannels, seedPlayers, seedMain } from './config.js';
@@ -255,16 +257,24 @@ async function main() {
   if (auth.canRefresh) startTokenRefresh(client, auth);
 }
 
-// Kun når filen køres direkte, så index.js kan importeres i en test.
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
-  main().catch((error) => {
-    // tmi.js afviser sit connect-promise med en bar streng, og undertiden med
-    // ingenting. `error.stack ?? error.message` blev derfor "undefined" og
-    // tabte den eneste oplysning om hvorfor botten ikke startede.
-    const reason = error?.stack ?? error?.message ?? String(error ?? 'ukendt årsag');
-    logger.error(`fatal: ${reason}`);
-    process.exitCode = 1;
-  });
+/**
+ * Kører kun når denne fil ER indgangen.
+ *
+ * Sammenligningen er på den fulde sti, ikke på filnavnet. Et navnetjek ville
+ * også slå til når roden index.js importerer denne, og så ville botten starte
+ * to gange og joine hver kanal dobbelt.
+ */
+const entry = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : null;
+
+export function runFatal(error) {
+  // tmi.js afviser sit connect-promise med en bar streng, og undertiden med
+  // ingenting. `error.stack ?? error.message` blev derfor "undefined" og
+  // tabte den eneste oplysning om hvorfor botten ikke startede.
+  const reason = error?.stack ?? error?.message ?? String(error ?? 'ukendt årsag');
+  logger.error(`fatal: ${reason}`);
+  process.exitCode = 1;
 }
+
+if (entry === import.meta.url) main().catch(runFatal);
 
 export { handlers, main };
