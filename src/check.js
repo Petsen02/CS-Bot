@@ -114,7 +114,9 @@ async function run() {
     }
 
     const next = nextLevel(player.elo);
-    console.log(`         næste: ${next ? `level ${next.level} om ${next.needed} elo` : 'level 10'}`);
+    console.log(`         næste: ${next
+      ? `level ${next.level} om ${next.needed} elo`
+      : 'ingen — allerede level 10'}`);
   }
 
   console.log('\n--- historik ---');
