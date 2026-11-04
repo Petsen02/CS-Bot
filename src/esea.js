@@ -3,148 +3,180 @@ import { TtlCache } from './cache.js';
 import { request } from './faceit.js';
 
 /**
- * ESEA League gennem FACEIT's league-endpoints.
+ * ESEA League gennem FACEIT's Data API.
  *
- * ESEA drives af ESL FACEIT Group, og ligaen ligger på FACEIT's egen platform
- * (faceit.com/en/esealeague). Derfor hentes den gennem det samme officielle
- * Data API som alt andet her — ikke ved at skrabe play.esea.net, som er
- * Cloudflare-beskyttet og kun tilgængeligt uofficielt.
+ * Vejen hertil var ikke oplagt, og strukturen herunder er MÅLT, ikke gættet:
  *
- * ADVARSEL — som resten af dataklienten er stierne og feltnavnene herunder
- * IKKE verificeret: alle faceit.com-værter var blokeret i miljøet koden blev
- * skrevet i. `npm run check` prøver dem og siger hvad der manglede.
- *
- * ESEA er grundlæggende anderledes end FACEIT-elo: det er en HOLDLIGA med
- * sæsoner og divisioner, ikke en personlig stige. Der findes derfor ikke et
- * "ESEA-tal" der svarer til elo — det nærmeste er holdets division og
- * placering i den igangværende sæson.
+ *   - ESEA er ikke en "league". Alle /leagues-ruter svarer 404.
+ *   - ESEA er en ORGANIZER, 08b06cfc-74d0-454b-9a51-feda4b6b18da, fundet med
+ *     /search/organizers?name=ESEA.
+ *   - Divisionerne er CHAMPIONSHIPS under den organizer, navngivet
+ *     "ESEA League EU Advanced S55 Qualifier" — region, division og
+ *     sæsonnummer står kun i navnet, ikke i felter.
+ *   - Stillingen ligger bag to kald: /leaderboards/championships/{id} giver et
+ *     leaderboard_id, og /leaderboards/{leaderboard_id} giver rækkerne.
+ *   - I et holdleaderboard er `player` HOLDET: user_id, nickname, avatar.
  */
 
-// Ligaen ændrer sig ikke; sæsonen gør. Lang TTL på ligaen, kortere på
-// placeringer, der flytter sig når der spilles kampe.
-const leagueCache = new TtlCache(60 * 60_000, 10);
-const seasonCache = new TtlCache(30 * 60_000, 20);
-const standingCache = new TtlCache(10 * 60_000, 200);
+export const ESEA_ORGANIZER = '08b06cfc-74d0-454b-9a51-feda4b6b18da';
 
-/** Ligaens stamdata, inklusive dens sæsoner. */
-export function getLeague(leagueId = config.esea.leagueId) {
-  return leagueCache.wrap(`league:${leagueId}`, () =>
-    request(`/leagues/${encodeURIComponent(leagueId)}`));
+// Championship-listen og stillingerne ændrer sig langsomt — en division spiller
+// en kamp om ugen — så en lang TTL sparer kald uden at vise forældede tal.
+const listCache = new TtlCache(60 * 60_000, 4);
+const standingsCache = new TtlCache(30 * 60_000, 60);
+
+/**
+ * Læser region, division og sæson ud af et championship-navn.
+ *
+ * "ESEA League EU Advanced S55 Qualifier" -> { region: 'EU', division:
+ * 'Advanced', season: 55 }
+ *
+ * Navnet er den eneste kilde: svarets `region`-felt findes, men division og
+ * sæson står ingen andre steder. Alt der ikke passer på mønsteret er noget
+ * andet end en ligadivision — finaler, relegation, ESL Impact — og skal ikke
+ * med.
+ */
+export function parseDivisionName(name) {
+  const match = String(name ?? '').match(
+    /^ESEA League\s+([A-Z]{2,3})\s+(Entry|Intermediate|Main|Advanced|Open)\s+S(\d+)\b/i,
+  );
+  if (!match) return null;
+
+  return {
+    region: match[1].toUpperCase(),
+    division: match[2][0].toUpperCase() + match[2].slice(1).toLowerCase(),
+    season: Number(match[3]),
+  };
 }
 
-export function getSeason(seasonId, leagueId = config.esea.leagueId) {
-  return seasonCache.wrap(`season:${leagueId}:${seasonId}`, () =>
-    request(`/leagues/${encodeURIComponent(leagueId)}/seasons/${encodeURIComponent(seasonId)}`));
+/** Alle championships under ESEA-organizeren, med navnet tolket. */
+export function listChampionships() {
+  return listCache.wrap('all', async () => {
+    const all = [];
+
+    // 543 i skrivende stund. Grænsen er en sikring mod at bladre i det
+    // uendelige hvis API'et holder op med at tømme sig.
+    for (let offset = 0; offset < 1000; offset += 50) {
+      const payload = await request(`/organizers/${ESEA_ORGANIZER}/championships`, {
+        params: { offset, limit: 50 },
+      });
+
+      const items = payload?.items ?? [];
+      all.push(...items);
+      if (items.length < 50) break;
+    }
+
+    return all
+      .map((item) => {
+        const parsed = parseDivisionName(item.name);
+        if (!parsed) return null;
+        return {
+          id: item.championship_id ?? item.id,
+          name: String(item.name ?? ''),
+          status: item.status ?? null,
+          ...parsed,
+        };
+      })
+      .filter(Boolean);
+  });
 }
 
 /**
- * Den sæson der kører nu.
+ * Divisionerne i den nyeste sæson for en region.
  *
- * Sæson-id'et skifter hver sæson, så det må ikke stå fast i koden — en bot der
- * skal redeployes hver gang ESEA starter en ny sæson er en bot der viser
- * forældede tal i ugevis. Derfor udledes den af ligaens egen sæsonliste.
- *
- * Rækkefølgen i svaret kan ikke antages, så sæsonerne sorteres på starttid, og
- * en sæson der er markeret som igangværende vinder over en nyere der endnu
- * ikke er begyndt.
+ * "Nyeste" er højeste sæsonnummer der FAKTISK har divisioner i regionen. At
+ * tage højeste sæsonnummer i det hele taget ramte "S58 OCE Finals Central",
+ * en aflyst finale uden hold og uden stilling.
  */
-export function pickCurrentSeason(leaguePayload, now = Date.now()) {
-  const seasons = leaguePayload?.seasons;
-  if (!Array.isArray(seasons) || seasons.length === 0) return null;
+export function pickSeason(championships, region) {
+  const inRegion = championships.filter((c) => c.region === region.toUpperCase());
+  if (inRegion.length === 0) return null;
 
-  const normalized = seasons
-    .map((season) => ({
-      seasonId: season.season_id ?? season.id ?? null,
-      name: season.name ?? season.title ?? null,
-      // Tidsstempler har optrådt både som sekunder og som ISO-strenge.
-      startedAt: toMillis(season.start_date ?? season.started_at ?? season.start),
-      endedAt: toMillis(season.end_date ?? season.ended_at ?? season.end),
-      status: season.status ?? null,
-    }))
-    .filter((season) => season.seasonId);
-
-  if (normalized.length === 0) return null;
-
-  const live = normalized.find(
-    (season) =>
-      (season.startedAt === null || season.startedAt <= now)
-      && (season.endedAt === null || season.endedAt >= now),
-  );
-  if (live) return live;
-
-  // Ingen sæson er åben lige nu — vis den seneste der er begyndt, så svaret
-  // bliver "sidste sæson sluttede sådan" frem for ingenting.
-  const started = normalized
-    .filter((season) => season.startedAt !== null && season.startedAt <= now)
-    .sort((a, b) => b.startedAt - a.startedAt);
-
-  return started[0] ?? normalized.at(-1);
+  const season = Math.max(...inRegion.map((c) => c.season));
+  return {
+    season,
+    divisions: inRegion.filter((c) => c.season === season),
+  };
 }
 
-/** Sekunder, millisekunder eller ISO — alle tre har optrådt i FACEIT's svar. */
-export function toMillis(value) {
-  if (value === null || value === undefined || value === '') return null;
+/**
+ * Stillingen i en division.
+ *
+ * MÅLT: `position` er 0 på hver eneste række, også på den der klart fører.
+ * Feltet er ubrugt, så placeringen udledes af rækkefølgen. Rækkerne kommer
+ * sorteret efter point, men det sorteres igen her frem for at stole på det —
+ * en forkert placering er værre end ingen.
+ */
+export function readStandings(rows) {
+  if (!Array.isArray(rows)) return [];
 
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    // Et sekund-tidsstempel for en CS2-sæson er omkring 1,7 milliarder;
-    // millisekunder er tusind gange større.
-    return value < 100_000_000_000 ? value * 1000 : value;
-  }
+  return rows
+    .map((row) => {
+      const team = row?.player ?? row?.team ?? {};
+      return {
+        // I et holdleaderboard er `player` holdet, og user_id dets id.
+        teamId: team.user_id ?? team.team_id ?? team.id ?? null,
+        teamName: team.nickname ?? team.name ?? null,
+        played: num(row?.played),
+        won: num(row?.won),
+        lost: num(row?.lost),
+        points: num(row?.points),
+        winRate: num(row?.win_rate),
+        streak: num(row?.current_streak),
+      };
+    })
+    .sort((a, b) => (b.points ?? -1) - (a.points ?? -1))
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+}
 
-  const parsed = Date.parse(String(value));
+function num(value) {
+  const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-/** Spillerens plads i en sæson: division, hold og placering. */
-export function getPlayerSeason(playerId, seasonId, leagueId = config.esea.leagueId) {
-  const key = `standing:${leagueId}:${seasonId}:${playerId}`;
+/** Rækkerne for ét championship, gennem dets leaderboard. */
+export function getStandings(championshipId) {
+  return standingsCache.wrap(`standings:${championshipId}`, async () => {
+    const defs = await request(`/leaderboards/championships/${encodeURIComponent(championshipId)}`,
+      { params: { limit: 10 } });
 
-  return standingCache.wrap(key, () =>
-    request(
-      `/leagues/${encodeURIComponent(leagueId)}/seasons/${encodeURIComponent(seasonId)}`
-      + `/players/${encodeURIComponent(playerId)}`,
-    ));
+    const boardId = defs?.items?.[0]?.leaderboard_id;
+    if (!boardId) return [];
+
+    const board = await request(`/leaderboards/${encodeURIComponent(boardId)}`,
+      { params: { limit: 100 } });
+
+    return readStandings(board?.items);
+  });
 }
 
 /**
- * Plukker divisionen, holdet og rekorden ud af et player-season-svar.
+ * Finder spillerens hold i en sæsons divisioner.
  *
- * Som alle parsere her prøves flere plausible feltnavne, og alt der ikke blev
- * fundet bliver null frem for nul: "0-0" ville læses som "spillet og tabt
- * ingenting", hvor sandheden er "vi ved det ikke".
+ * Divisionerne gennemsøges fra stærkeste til svageste, så et hold der optræder
+ * i flere rapporteres på sit højeste niveau.
  */
-export function readEseaStanding(payload) {
-  if (!payload || typeof payload !== 'object') return null;
+const DIVISION_ORDER = ['Advanced', 'Main', 'Intermediate', 'Entry', 'Open'];
 
-  // Svaret har haft spillerens data både i roden og under en division-nøgle.
-  const root = payload.player ?? payload;
-  const division = root.division ?? payload.division ?? {};
-  const team = root.team ?? payload.team ?? {};
+export async function findTeamStanding(teamIds, divisions) {
+  const wanted = new Set(teamIds.filter(Boolean));
+  if (wanted.size === 0) return null;
 
-  const num = (...values) => {
-    for (const value of values) {
-      const parsed = Number(value);
-      if (Number.isFinite(parsed)) return parsed;
+  const ordered = [...divisions].sort(
+    (a, b) => DIVISION_ORDER.indexOf(a.division) - DIVISION_ORDER.indexOf(b.division),
+  );
+
+  for (const division of ordered) {
+    let standings;
+    try {
+      standings = await getStandings(division.id);
+    } catch {
+      continue; // En division uden stilling må ikke stoppe søgningen.
     }
-    return null;
-  };
 
-  const divisionName = division.name ?? division.division_name ?? root.division_name ?? null;
+    const row = standings.find((entry) => wanted.has(entry.teamId));
+    if (row) return { ...row, division: division.division, season: division.season, total: standings.length };
+  }
 
-  return {
-    division: divisionName ? String(divisionName) : null,
-    // Underdivisioner hedder fx "Advanced - Group C".
-    group: division.group_name ?? division.group ?? root.group_name ?? null,
-    teamName: team.name ?? team.team_name ?? root.team_name ?? null,
-    placement: num(root.placement, root.position, root.rank, division.placement),
-    wins: num(root.wins, root.win, team.wins),
-    losses: num(root.losses, root.loss, team.losses),
-    points: num(root.points, root.score, team.points),
-  };
-}
-
-/** Om et sæsonsvar overhovedet indeholder en plads for spilleren. */
-export function hasEseaPlace(standing) {
-  if (!standing) return false;
-  return Boolean(standing.division || standing.teamName || standing.placement !== null);
+  return null;
 }

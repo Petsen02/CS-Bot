@@ -21,13 +21,15 @@ import {
   getRanking,
 } from './faceit.js';
 import { readMatchStats, didWin } from './commands.js';
-import { getLeague, pickCurrentSeason, getPlayerSeason, readEseaStanding, hasEseaPlace } from './esea.js';
+import { listChampionships, pickSeason, getStandings, findTeamStanding } from './esea.js';
+import { getPlayerTeams } from './faceit.js';
 import { levelFor, nextLevel } from './elo.js';
 
 const PASS = '  ok  ';
 const FAIL = ' FEJL ';
 const WARN = ' obs  ';
 
+const SEP_CHECK = '  |  ';
 let failures = 0;
 
 /** Spillerens rå player_stats, til at vise de faktiske nøglenavne. */
@@ -233,37 +235,56 @@ async function run() {
   }
 
   console.log('\n--- ESEA League ---');
-  const league = await step('getLeague', () => getLeague());
+  const championships = await step('listChampionships', () => listChampionships());
 
-  if (league) {
-    const seasons = Array.isArray(league.seasons) ? league.seasons : [];
-    report(seasons.length > 0 ? PASS : FAIL, 'sæsoner i svaret', String(seasons.length));
+  if (Array.isArray(championships)) {
+    report(championships.length > 0 ? PASS : FAIL, 'divisioner fundet', String(championships.length));
 
-    if (seasons.length === 0) {
-      // Uden en sæsonliste kan sæsonen ikke udledes, og !esea har intet at slå op.
-      console.log(`         nøgler i liga-svaret: ${Object.keys(league).join(', ')}`);
-    }
+    const seasons = [...new Set(championships.map((c) => c.season))].sort((a, b) => b - a);
+    console.log(`         sæsoner: ${seasons.slice(0, 8).join(', ')}`);
 
-    const season = pickCurrentSeason(league);
-    if (!season?.seasonId) {
-      report(FAIL, 'valgt sæson', 'kunne ikke udledes af ligaen');
+    const season = pickSeason(championships, defaultRegion);
+    if (!season) {
+      report(FAIL, `${defaultRegion}-sæson`, 'ingen divisioner i regionen');
     } else {
-      report(PASS, 'valgt sæson', `${season.name ?? '(uden navn)'} — ${season.seasonId}`);
+      report(PASS, `nyeste ${defaultRegion}-sæson`, `S${season.season}`);
+      console.log(`         divisioner: ${season.divisions.map((d) => d.division).join(', ')}`);
 
-      const raw = await step('getPlayerSeason', () => getPlayerSeason(player.playerId, season.seasonId));
-      if (raw) {
-        const standing = readEseaStanding(raw);
-        if (!hasEseaPlace(standing)) {
-          // Et gyldigt svar: spilleren er ikke på et hold i denne sæson.
-          report(WARN, 'ESEA-plads', 'spilleren er ikke med i sæsonen');
-          console.log(`         nøgler: ${Object.keys(raw).join(', ')}`);
-        } else {
-          expect('division', standing.division, { required: false });
-          expect('gruppe', standing.group, { required: false });
-          expect('hold', standing.teamName, { required: false });
-          expect('placering', standing.placement, { required: false });
-          expect('W-L', standing.wins === null ? null : `${standing.wins}-${standing.losses}`,
-            { required: false });
+      // Stillingen er det !esea lever af. Er den tom, er kommandoen død.
+      const division = season.divisions[0];
+      const standings = await step(`getStandings (${division.division})`,
+        () => getStandings(division.id));
+
+      if (Array.isArray(standings)) {
+        report(standings.length > 0 ? PASS : FAIL, 'hold i stillingen', String(standings.length));
+
+        const top = standings[0];
+        if (top) {
+          expect('holdnavn', top.teamName);
+          // DETTE er den sidste ubekræftede antagelse: at team-id'et i
+          // stillingen er det samme id som /players/{id}/teams giver.
+          expect('hold-id', top.teamId);
+          console.log(`         top 3: ${standings.slice(0, 3)
+            .map((r) => `#${r.rank} ${r.teamName} ${r.won}-${r.lost}`).join(SEP_CHECK)}`);
+        }
+      }
+
+      if (player.playerId) {
+        const teams = await step('getPlayerTeams', () => getPlayerTeams(player.playerId));
+        if (Array.isArray(teams)) {
+          report(teams.length > 0 ? PASS : WARN, 'spillerens hold', String(teams.length));
+          for (const team of teams.slice(0, 8)) {
+            console.log(`           ${team.name}  ${team.teamId}`);
+          }
+
+          const standing = await findTeamStanding(teams.map((t) => t.teamId), season.divisions);
+          if (standing) {
+            report(PASS, 'spilleren fundet i en division',
+              `${standing.division} — ${standing.teamName} #${standing.rank}`);
+          } else {
+            // Gyldigt svar: de fleste spiller ikke ESEA.
+            report(WARN, 'spilleren i en division', 'ikke på et hold i denne sæson');
+          }
         }
       }
     }

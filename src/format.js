@@ -238,36 +238,35 @@ export function formatMaps({ nickname, best, worst }) {
 }
 
 /**
- * "PETSEN │ ESEA Advanced │ Nordic Noobs 7-3 │ #4"
+ * "vigg0 │ ESEA S55 Advanced │ SPARTA 8-0 │ #1 af 16 │ 24 pts"
  *
- * ESEA er en holdliga, så svaret handler om holdet og divisionen — der findes
- * intet personligt ESEA-tal der svarer til FACEIT-elo. Felter der mangler
- * udelades: "0-3" uden at have spillet ville være en påstand.
+ * ESEA er en holdliga, så svaret handler om holdet. Der findes intet
+ * personligt ESEA-tal der svarer til FACEIT-elo.
+ *
+ * Placeringen er UDLEDT af rækkefølgen i stillingen, ikke læst af et felt:
+ * API'ets `position` er målt til 0 på hver eneste række, også på føreren.
  */
-export function formatEsea({ nickname, season, standing }) {
+export function formatEsea({ nickname, season, region, standing }) {
   if (!standing) {
-    const which = season ? ` (${season})` : '';
+    const which = season ? ` (S${season}${region ? ` ${region}` : ''})` : '';
     return `${nickname} er ikke på et ESEA-hold i denne sæson${which}`;
   }
 
-  const parts = [nickname];
+  const parts = [nickname, `ESEA S${standing.season} ${standing.division}`];
 
-  const division = [standing.division, standing.group].filter(Boolean).join(' ');
-  if (division) parts.push(`ESEA ${division}`);
-  else if (season) parts.push(`ESEA ${season}`);
-
-  const record = Number.isFinite(standing.wins) && Number.isFinite(standing.losses)
-    ? `${standing.wins}-${standing.losses}`
+  const record = Number.isFinite(standing.won) && Number.isFinite(standing.lost)
+    ? `${standing.won}-${standing.lost}`
     : null;
 
   if (standing.teamName && record) parts.push(`${standing.teamName} ${record}`);
   else if (standing.teamName) parts.push(standing.teamName);
   else if (record) parts.push(record);
 
-  if (Number.isFinite(standing.placement)) parts.push(`#${standing.placement}`);
+  if (Number.isFinite(standing.rank)) {
+    parts.push(standing.total ? `#${standing.rank} af ${standing.total}` : `#${standing.rank}`);
+  }
 
-  // Kun nicket og intet andet betyder at svaret var tomt i praksis.
-  if (parts.length === 1) return `${nickname} — ingen ESEA-data i denne sæson`;
+  if (Number.isFinite(standing.points)) parts.push(`${standing.points} pts`);
 
   return parts.join(SEP);
 }

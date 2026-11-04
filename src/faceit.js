@@ -378,6 +378,18 @@ export function readPosition(payload, playerId) {
   return null;
 }
 
+/** Spillerens hold. Nøglen til at finde dem i en ESEA-division. */
+export function getPlayerTeams(playerId) {
+  return statsCache.wrap(`teams:${playerId}`, async () => {
+    const payload = await request(`/players/${encodeURIComponent(playerId)}/teams`,
+      { params: { limit: 20 } });
+
+    return (payload?.items ?? [])
+      .map((item) => ({ teamId: item.team_id ?? item.id, name: item.name ?? item.nickname }))
+      .filter((team) => team.teamId);
+  });
+}
+
 /** Regionens leaderboard — bruges til at vise hvad Challenger-grænsen er. */
 export function getLeaderboard(region, { limit = 1, offset = 0, country } = {}) {
   return request(`/rankings/games/${config.faceit.game}/regions/${encodeURIComponent(region)}`, {

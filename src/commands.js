@@ -11,11 +11,12 @@ import {
   getMatchStats,
   getPlayerStats,
   getRanking,
+  getPlayerTeams,
   isFinished,
   isLive,
 } from './faceit.js';
 import { nextLevel, winsNeeded, levelFor } from './elo.js';
-import { getLeague, pickCurrentSeason, getPlayerSeason, readEseaStanding, hasEseaPlace } from './esea.js';
+import { listChampionships, pickSeason, findTeamStanding } from './esea.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
   SEP,
@@ -459,35 +460,40 @@ export async function commandMaps({ channel, argument }) {
 }
 
 /**
- * Spillerens plads i den igangværende ESEA-sæson.
+ * Spillerens hold i den nyeste ESEA-sæson.
  *
  * Bevidst adskilt fra !rank. ESEA er en holdliga med divisioner og sæsoner, så
  * svaret er holdets division, rekord og placering — ikke et personligt tal.
- * At presse det ind i !rank ville blande to størrelser der ikke kan
- * sammenlignes.
+ *
+ * Kæden er spiller -> hold -> divisioner -> stilling. Divisionerne og deres
+ * stillinger caches en halv time, så kommandoen koster normalt nul kald: en
+ * division spiller en kamp om ugen.
  */
 export async function commandEsea({ channel, argument }) {
   const { player } = await resolveTarget(channel, argument);
+  const { region } = channels.get(channel);
 
-  const season = pickCurrentSeason(await getLeague());
-  if (!season?.seasonId) {
-    return `Kunne ikke finde en ESEA-sæson lige nu${SEP}prøv igen senere`;
+  const [teams, championships] = await Promise.all([
+    getPlayerTeams(player.playerId),
+    listChampionships(),
+  ]);
+
+  if (teams.length === 0) {
+    return `${player.nickname} er ikke på noget FACEIT-hold`;
   }
 
-  let standing = null;
-  try {
-    standing = readEseaStanding(await getPlayerSeason(player.playerId, season.seasonId));
-  } catch (error) {
-    // 404 her betyder "spilleren er ikke med i sæsonen", hvilket er et
-    // gyldigt svar og ikke en fejl at vise seeren.
-    if (error.kind !== 'not_found') throw error;
-    logger.info(`!esea: ${player.nickname} er ikke i sæson ${season.name ?? season.seasonId}`);
+  const season = pickSeason(championships, region);
+  if (!season) {
+    return `Ingen ESEA-divisioner fundet for ${region}`;
   }
+
+  const standing = await findTeamStanding(teams.map((t) => t.teamId), season.divisions);
 
   return formatEsea({
     nickname: player.nickname,
-    season: season.name,
-    standing: hasEseaPlace(standing) ? standing : null,
+    season: season.season,
+    region,
+    standing,
   });
 }
 

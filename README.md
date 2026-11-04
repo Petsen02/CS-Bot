@@ -19,8 +19,8 @@ Botten dækker to ting, og de er bevidst holdt adskilt:
 
 - **FACEIT-elo** — et personligt tal der flytter sig hver kamp. `!rank`,
   `!session`, `!nextrank`, `!lastgame`, `!lobby`, `!top`, `!maps`.
-- **ESEA League** var planlagt, men findes ikke i FACEIT's Data API. `!esea`
-  er slået fra — se afsnittet nedenfor.
+- **ESEA League** — en **holdliga** med sæsoner og divisioner. `!esea` viser
+  holdets division, rekord og placering. Se afsnittet nedenfor.
 
 **Valve's Premier er ikke med**, og det er et valg, ikke en mangel: Valve
 udstiller ikke CS Rating gennem noget API, og de projekter der alligevel læser
@@ -40,7 +40,6 @@ land), elo→level-tabellen, kamphistorik, kampdetaljer, al kampstatistik til
 
 **Virker ikke:**
 
-- **ESEA** findes ikke i Data API'et. `!esea` er slået fra — se nedenfor.
 - **FACEIT Rating og Round Swing** er ikke i Data API'et — se nedenfor.
 
 **Uafklaret:** om en placering i `!top` og `!rank` er 1-indekseret. Den eneste
@@ -65,6 +64,7 @@ betjene flere streamere uden at de ser hinandens spillere.
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
 | `!top [nick]` | `PETSEN LEVEL10: 2347 elo │ DK #12 │ EU #418` |
 | `!maps [nick]` | `PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)` |
+| `!esea [nick]` | `vigg0 │ ESEA S55 Advanced │ SPARTA 8-0 │ #1 af 16 │ 24 pts` |
 
 
 Alle kommandoer tager et FACEIT-nick, et SteamID64 eller et link til en
@@ -121,22 +121,37 @@ dem direkte — begge kan udledes præcist, så der er ingen grund til et hul.
 antal forsøg — at vise det som entry kills ville overdrive hvad spilleren
 faktisk åbnede runder med.
 
-### ESEA er slået fra
+### ESEA er en holdliga
 
-`!esea` er ikke med, og det er målt frem for antaget. ESEA findes ikke i
-FACEIT's Data API:
+`!esea` svarer om et hold, ikke om en person. Der findes intet personligt
+ESEA-tal der svarer til FACEIT-elo, så den er sin egen kommando frem for en
+linje i `!rank`.
 
-- alle `/leagues`-ruter svarer 404, uanset id og uanset om sæsonen er en UUID
-  eller et tal
-- ingen af 400+ gennemsøgte cs2-championships har "esea" i navnet
-- hverken hold, turneringer eller hubs på en spillers profil nævner ESEA
+**Hvordan ESEA ligger i API'et** — kortlagt med `npm run probe-esea`, for det
+er ikke oplagt:
 
-`src/esea.js` og `npm run probe-esea` bliver stående. Åbner FACEIT ligaen i
-API'et, er det én udkommenteret linje i `src/index.js` der skal slås til igen.
+- ESEA er **ikke** en "league". Alle `/leagues`-ruter svarer 404.
+- ESEA er en **organizer**: `08b06cfc-74d0-454b-9a51-feda4b6b18da`.
+- Divisionerne er **championships** under den, 543 i alt, navngivet
+  `ESEA League EU Advanced S55 Qualifier`. Region, division og sæson står
+  **kun i navnet** — ikke i felter. 402 af de 543 er noget andet: finaler,
+  relegation, ESL Impact.
+- Stillingen kræver to kald: `/leaderboards/championships/{id}` giver et
+  `leaderboard_id`, og `/leaderboards/{leaderboard_id}` giver rækkerne.
+- I et holdleaderboard er feltet `player` **holdet**, og `user_id` dets id.
 
-Alternativet er FACEIT's interne web-API, som driver deres egen ESEA-side. Den
-er udokumenteret og kan ændre sig uden varsel, så den er fravalgt bevidst frem
-for at bygge en del ind der knækker af sig selv.
+Botten finder den nyeste sæson der faktisk har divisioner i kanalens region,
+søger dem igennem fra Advanced og nedefter, og rapporterer holdet på sit
+højeste niveau. Divisionslisten og stillingerne caches en halv time, så
+kommandoen normalt koster nul kald — en division spiller en kamp om ugen.
+
+**Placeringen er udledt, ikke læst.** API'ets `position` er 0 på hver eneste
+række, også på føreren med flest point, så stillingen sorteres efter point og
+placeringen tælles derfra.
+
+Sæsonerne i API'et går til S55, og de er alle afsluttede. Season 59 var åben
+for tilmelding på FACEIT's hjemmeside, men findes ikke i API'et endnu, så
+`!esea` rapporterer den seneste sæson der har data.
 
 ## Admin-kommandoer
 
