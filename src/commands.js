@@ -21,6 +21,8 @@ import {
   pickCompetitions,
   findTeamStanding,
   isLiveCompetition,
+  parseTeamId,
+  probeTeamRoutes,
 } from './esea.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
@@ -505,7 +507,33 @@ export async function commandEsea({ channel, argument }) {
  * hvorfor !esea siger hvad den siger: hvor mange turneringer der blev hentet,
  * hvor mange der er igangværende, og hvilke den leder i først.
  */
-export async function commandEseaDebug({ channel }) {
+export async function commandEseaDebug({ channel, argument }) {
+  // Med et hold-id undersøges holdets egne ruter i stedet. ESEA's kørende
+  // sæson findes ikke under organizeren, så den må nås fra holdets side — og
+  // hvilke ruter der findes, kan kun afgøres ved at spørge.
+  const teamId = parseTeamId(argument);
+  if (argument && !teamId) {
+    return 'Brug: !csbotesea [team-id eller faceit.com/teams/...-link]';
+  }
+
+  if (teamId) {
+    const results = await probeTeamRoutes(teamId);
+
+    const parts = results.map((r) => {
+      if (r.status !== 200) return `${r.route} ${r.status || 'fejl'}`;
+      if (r.count === null) return `${r.route} ok${r.name ? ` (${r.name})` : ''}`;
+      const names = r.names.length ? `: ${r.names.join(' · ')}` : '';
+      return `${r.route} ${r.count}${names}`;
+    });
+
+    return parts.join(SEP);
+  }
+
+  return eseaOverview(channel);
+}
+
+/** Hvad botten ser hos ESEA-organizeren. */
+async function eseaOverview(channel) {
   const { region } = channels.get(channel);
   const championships = await listChampionships();
 

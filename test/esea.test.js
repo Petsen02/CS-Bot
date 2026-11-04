@@ -144,3 +144,22 @@ test('formatEsea siger det pænt når holdet ikke blev fundet', () => {
     'vigg0 er ikke på et ESEA-hold i EU lige nu',
   );
 });
+
+test('parseTeamId tager både et rå id og et FACEIT-link', async () => {
+  const { parseTeamId } = await import('../src/esea.js');
+
+  const id = '429cd873-24a8-4029-aa34-85622ba8976a';
+  assert.equal(parseTeamId(id), id);
+  assert.equal(parseTeamId(`https://www.faceit.com/en/teams/${id}`), id);
+  assert.equal(parseTeamId(`  ${id}  `), id);
+});
+
+test('parseTeamId afviser alt der ikke er et id', async () => {
+  const { parseTeamId } = await import('../src/esea.js');
+
+  // Et nick er ikke et hold-id, og må ikke sendes videre som ét.
+  assert.equal(parseTeamId('vigg0'), null);
+  assert.equal(parseTeamId('429cd873'), null, 'for kort');
+  assert.equal(parseTeamId(''), null);
+  assert.equal(parseTeamId(null), null);
+});

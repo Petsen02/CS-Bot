@@ -289,3 +289,49 @@ export async function findTeamStanding(teamIds, competitions) {
 
   return null;
 }
+
+/** Læser et team-id ud af et rå id eller et faceit.com/teams/...-link. */
+export function parseTeamId(input) {
+  const raw = String(input ?? '').trim();
+  const link = raw.match(/teams\/([0-9a-f-]{36})/i);
+  const id = link ? link[1] : raw;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : null;
+}
+
+/**
+ * Prøver de ruter der kunne fortælle hvad et hold er tilmeldt.
+ *
+ * ESEA's kørende sæson findes ikke under organizerens championships, så den
+ * må nås fra holdets side. Hvilke af disse ruter der findes, er ubekendt —
+ * derfor prøves de, og svaret rapporteres i stedet for at blive gættet.
+ *
+ * Kaster aldrig: en rute der ikke findes er et resultat, ikke en fejl.
+ */
+export async function probeTeamRoutes(teamId) {
+  const routes = ['', '/tournaments', '/championships', '/leagues'];
+  const results = [];
+
+  for (const suffix of routes) {
+    const path = `/teams/${encodeURIComponent(teamId)}${suffix}`;
+
+    try {
+      const payload = await request(path, { params: suffix ? { limit: 10 } : undefined });
+      const items = Array.isArray(payload?.items) ? payload.items : null;
+
+      results.push({
+        route: suffix || '(holdet)',
+        status: 200,
+        count: items ? items.length : null,
+        names: (items ?? [])
+          .map((item) => item.name ?? item.competition_name ?? null)
+          .filter(Boolean)
+          .slice(0, 3),
+        name: suffix ? null : (payload?.name ?? null),
+      });
+    } catch (error) {
+      results.push({ route: suffix || '(holdet)', status: error?.status ?? 0, count: null, names: [] });
+    }
+  }
+
+  return results;
+}

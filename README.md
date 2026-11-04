@@ -198,6 +198,7 @@ andre bots i samme chat; det kan skiftes med `ADMIN_PREFIX` i `.env`.
 | `!csbotregion EU` | mod | Sætter kanalens region — `EU`, `NA`, `SA`, `AS`, `OCE` |
 | `!csbotcountry dk` | mod | Sætter landet `!top` måler mod |
 | `!csbotesea` | mod | Diagnose: hvad botten ser hos ESEA, og hvor den leder |
+| `!csbotesea <hold>` | mod | Prøver holdets egne ruter — tager et team-id eller et FACEIT-link |
 
 ## Level og elo
 
