@@ -1,75 +1,107 @@
 /**
- * Finder den rigtige vej til ESEA-data i FACEIT's Data API.
+ * Finder den rigtige vej til ESEA-data i FACEIT's Data API — runde 2.
  *
  *   node src/probe-esea.js [nick]
  *
- * Antagelsen om at `/leagues/{league_id}` svarer på ESEA's liga-id fra den
- * offentlige URL viste sig forkert — den giver 404. Denne fil prøver de
- * plausible alternativer af og viser hvad hvert enkelt svarer, så gætteriet
- * kan erstattes af en måling.
+ * Første runde afviste det oplagte: `/leagues/{id}` giver 404 på begge UUID'er
+ * fra den offentlige ESEA-URL. Men den gav også to spor:
  *
- * Den skriver intet og ændrer ingenting. Send output'et videre, så kan
- * src/esea.js rettes til det der faktisk virker.
+ *   1. `/leagues/{liga}/seasons/{sæson}` svarer 400, ikke 404. Et endpoint der
+ *      ikke findes giver 404; 400 betyder at ruten findes og parametrene er
+ *      forkerte. Sandsynligvis skal sæsonen være et TAL, ikke en UUID.
+ *   2. `/championships?game=cs2` virker og returnerer navn, id og organizer_id.
+ *      ESEA's divisioner er formentlig championships, og kan så findes på navn.
+ *
+ * Denne runde forfølger begge. Den skriver intet og ændrer ingenting.
  */
 import { config, parsePlayerRef } from './config.js';
 import { resolvePlayer } from './faceit.js';
 
-// Fra den offentlige liga-URL:
-// faceit.com/en/cs2/league/esea%20league/<LEAGUE>/<SEASON>/overview
 const LEAGUE = 'a14b8616-45b9-4581-8637-4dfd0b5f6af8';
-const SEASON = 'ec187700-30e2-4245-b5e2-daa762db12fc';
 
-async function probe(label, path, params = {}) {
+async function call(path, params = {}) {
   const url = new URL(`${config.faceit.baseUrl}${path}`);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
   }
 
-  let response;
   try {
-    response = await fetch(url, {
+    const response = await fetch(url, {
       headers: { Authorization: `Bearer ${config.faceit.apiKey}`, Accept: 'application/json' },
       signal: AbortSignal.timeout(15_000),
     });
+
+    if (!response.ok) return { status: response.status, body: null };
+    return { status: response.status, body: await response.json() };
   } catch (error) {
-    console.log(`[ net  ] ${label}\n         ${error.message}`);
+    return { status: 0, body: null, error: error.message };
+  }
+}
+
+async function show(label, path, params) {
+  const { status, body, error } = await call(path, params);
+
+  if (status !== 200) {
+    console.log(`[ ${String(status || 'net').padStart(4)} ] ${label}${error ? ` — ${error}` : ''}`);
     return null;
   }
 
-  if (!response.ok) {
-    console.log(`[ ${String(response.status).padStart(4)} ] ${label}`);
-    console.log(`         ${path}${url.search}`);
-    return null;
-  }
-
-  let body;
-  try {
-    body = await response.json();
-  } catch {
-    console.log(`[  ok  ] ${label} — svarede, men ikke med JSON`);
-    return null;
-  }
-
-  console.log(`[  OK  ] ${label}`);
-  console.log(`         ${path}${url.search}`);
-  console.log(`         nøgler: ${Object.keys(body ?? {}).join(', ') || '(tomt objekt)'}`);
-
-  // Sæsonlister er det !esea er afhængig af, så de vises hvis de er der.
-  for (const key of ['seasons', 'items', 'divisions', 'payload']) {
-    const value = body?.[key];
-    if (Array.isArray(value) && value.length > 0) {
-      console.log(`         ${key}[0]: ${Object.keys(value[0]).join(', ')}`);
-    }
-  }
-
-  // Luk pænt ned om det er en liga med sæsoner — så har vi fundet vejen.
+  const keys = Object.keys(body ?? {});
+  const count = Array.isArray(body?.items) ? ` — ${body.items.length} items` : '';
+  console.log(`[  OK  ] ${label}${count}`);
+  console.log(`         nøgler: ${keys.join(', ')}`);
   return body;
 }
 
+/** Bladrer gennem alle cs2-championships og leder efter ESEA på navn. */
+async function findEseaChampionships() {
+  const found = [];
+  const seenOrganizers = new Map();
+  const PAGE = 50;
+
+  for (let offset = 0; offset < 500; offset += PAGE) {
+    const { status, body } = await call('/championships', {
+      game: config.faceit.game,
+      offset,
+      limit: PAGE,
+    });
+
+    if (status !== 200) {
+      console.log(`         (stoppede ved offset ${offset}: HTTP ${status})`);
+      break;
+    }
+
+    const items = body?.items ?? [];
+    if (items.length === 0) break;
+
+    for (const item of items) {
+      const name = String(item.name ?? '');
+      if (item.organizer_id) {
+        seenOrganizers.set(item.organizer_id, (seenOrganizers.get(item.organizer_id) ?? 0) + 1);
+      }
+      if (/esea/i.test(name)) {
+        found.push({
+          id: item.championship_id ?? item.id,
+          name,
+          region: item.region,
+          status: item.status,
+          type: item.type,
+          organizer: item.organizer_id,
+          url: item.faceit_url,
+        });
+      }
+    }
+
+    process.stdout.write(`\r         gennemsøgt ${offset + items.length} championships…`);
+    if (items.length < PAGE) break;
+  }
+
+  process.stdout.write('\r');
+  return { found, seenOrganizers };
+}
+
 async function run() {
-  console.log(`base: ${config.faceit.baseUrl}`);
-  console.log(`liga fra URL:   ${LEAGUE}`);
-  console.log(`sæson fra URL:  ${SEASON}\n`);
+  console.log(`base: ${config.faceit.baseUrl}\n`);
 
   let playerId = null;
   const input = process.argv[2];
@@ -86,33 +118,60 @@ async function run() {
     }
   }
 
-  console.log('--- liga-endpoints ---');
-  await probe('leagues/{liga}', `/leagues/${LEAGUE}`);
-  await probe('leagues/{sæson-id som liga}', `/leagues/${SEASON}`);
-  await probe('leagues/{liga}/seasons/{sæson}', `/leagues/${LEAGUE}/seasons/${SEASON}`);
-
-  console.log('\n--- championship-endpoints ---');
-  await probe('championships/{liga}', `/championships/${LEAGUE}`);
-  await probe('championships/{sæson}', `/championships/${SEASON}`);
-  await probe('championships for cs2', '/championships', { game: config.faceit.game, limit: 5 });
-
-  console.log('\n--- leaderboards ---');
-  await probe('leaderboards/championships/{sæson}',
-    `/leaderboards/championships/${SEASON}`, { limit: 3 });
-  await probe('leaderboards/championships/{sæson}/groups/1',
-    `/leaderboards/championships/${SEASON}/groups/1`, { limit: 3 });
-
-  if (playerId) {
-    console.log('\n--- spillerens plads ---');
-    await probe('leagues/{liga}/seasons/{sæson}/players/{spiller}',
-      `/leagues/${LEAGUE}/seasons/${SEASON}/players/${playerId}`);
-    await probe('players/{spiller}/games/cs2/stats', `/players/${playerId}/games/${config.faceit.game}/stats`);
+  // Spor 1: er sæsonen et tal?
+  console.log('--- spor 1: sæson som tal i stedet for UUID ---');
+  for (const season of [59, 58, 1]) {
+    await show(`leagues/{liga}/seasons/${season}`, `/leagues/${LEAGUE}/seasons/${season}`);
+  }
+  // Måske er liga-id'et slet ikke en UUID.
+  for (const league of ['esea', 'ESEA', 'esea-league']) {
+    await show(`leagues/${league}`, `/leagues/${encodeURIComponent(league)}`);
   }
 
-  console.log('\nFærdig. Linjer med [  OK  ] er dem der svarede.');
-  console.log('Svarede ingen, findes ESEA ikke i Data API\'et, og !esea kan ikke');
-  console.log('bygges officielt — så er beslutningen om den skal udgå eller hente');
-  console.log('fra FACEIT\'s interne web-API.');
+  // Spor 2: find ESEA blandt alle cs2-championships.
+  console.log('\n--- spor 2: ESEA blandt cs2-championships ---');
+  const { found, seenOrganizers } = await findEseaChampionships();
+
+  if (found.length === 0) {
+    console.log('         ingen championships med "esea" i navnet');
+    const top = [...seenOrganizers.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    if (top.length > 0) {
+      console.log('         hyppigste organizer_id (til et opslag i browseren):');
+      for (const [id, count] of top) console.log(`           ${id} — ${count} championships`);
+    }
+  } else {
+    console.log(`         ${found.length} fundet:`);
+    for (const item of found.slice(0, 12)) {
+      console.log(`           ${item.name}`);
+      console.log(`             id=${item.id} region=${item.region} status=${item.status}`);
+    }
+
+    // Virker en af dem, har vi vejen.
+    const first = found[0];
+    console.log(`\n--- spor 3: prøver "${first.name}" ---`);
+    await show('championships/{id}', `/championships/${first.id}`);
+    const board = await show('leaderboards/championships/{id}',
+      `/leaderboards/championships/${first.id}`, { limit: 5 });
+
+    if (Array.isArray(board?.items) && board.items[0]) {
+      console.log(`         items[0]: ${Object.keys(board.items[0]).join(', ')}`);
+    }
+
+    if (first.organizer) {
+      await show('organizers/{id}', `/organizers/${first.organizer}`);
+      await show('organizers/{id}/championships',
+        `/organizers/${first.organizer}/championships`, { limit: 5 });
+    }
+  }
+
+  if (playerId) {
+    console.log('\n--- spor 4: spillerens egne hold og turneringer ---');
+    await show('players/{id}/teams', `/players/${playerId}/teams`);
+    await show('players/{id}/tournaments', `/players/${playerId}/tournaments`);
+    await show('players/{id}/hubs', `/players/${playerId}/hubs`, { limit: 5 });
+  }
+
+  console.log('\nFærdig. Send hele output\'et videre.');
 }
 
 run().catch((error) => {
