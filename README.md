@@ -110,8 +110,8 @@ Kommer kun regionen med, er det den du ser.
 ### Hvad `!lastgame` viser
 
 ```
-Petsen │ Inferno 6-13 L │ 6-16-1 │ 0.38 K/D │ 0.32 K/R │ 38.4 ADR │ 729 dmg
-       │ 50% HS │ 3 flashed │ -25 elo │ 11 util dmg │ 2 entry │ 1 clutch │ 1 MVP
+vigg0 │ Ancient 13-9 W │ 25-15-7 │ 1.50 HLTV │ 1.67 K/D │ 1.14 K/R │ 125.6 ADR
+      │ 2763 dmg │ 72% HS │ 7 flashed │ +28 elo │ 74 util dmg │ 3 entry │ 5 MVP
 ```
 
 Felterne står i prioritetsrækkefølge og tilføjes så længe der er plads. Det er
@@ -123,15 +123,18 @@ vise et halvt. Med alt udfyldt er linjen omkring 190 tegn, så det sker sjælden
 Felter uden data udelades også. `0.0 ADR` ville læses som "spillede og lavede
 ingen skade", hvor sandheden er at FACEIT ikke oplyste det.
 
+**`HLTV` er HLTV Rating 1.0, regnet af kampens egne tal.** Den bruger kun
+kills, deaths, runder og multi-kills, og alle fem er i svaret — så det er den
+samme udregning HLTV selv offentliggjorde, ikke et opfundet tal. Feltet hedder
+`HLTV` og ikke `rating`, netop så det ikke forveksles med FACEIT's egen.
+
 **FACEIT Rating og Round Swing er ikke med**, og det er målt, ikke gættet. Et
 rigtigt kald mod `/matches/{id}/stats` returnerer 47 felter, og hverken rating
-eller swing er blandt dem under noget navn. De to tal findes kun i FACEIT's
+eller swing er blandt dem under noget navn. De to findes kun i FACEIT's
 web-UI. Koden læser dem stadig, under flere navne, så de dukker op af sig selv
-hvis FACEIT føjer dem til API'et — men regn ikke med dem.
+hvis FACEIT føjer dem til API'et.
 
-Der kan heller ikke regnes en erstatning: en HLTV-agtig Rating 2.0 kræver KAST,
-og KAST er heller ikke i svaret. At vise et selvopfundet tal under navnet
-"rating" ville være værre end at lade feltet være.
+Rating 2.0 kan ikke regnes: den kræver KAST, som heller ikke er i svaret.
 
 `K/R` og `ADR` udregnes fra kills, damage og rundeantal hvis FACEIT ikke sender
 dem direkte — begge kan udledes præcist, så der er ingen grund til et hul.

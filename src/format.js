@@ -114,6 +114,11 @@ export function formatLastGame(game, { budget = 420 } = {}) {
       ? `${game.kills}-${game.deaths}${Number.isFinite(game.assists) ? `-${game.assists}` : ''}`
       : null,
 
+    // HLTV-ratingen står tidligt: den siger mere om kampen end noget andet
+    // enkelt tal. Navnet er "HLTV", ikke "rating", så den ikke forveksles med
+    // FACEIT's egen — som ikke findes i API'et.
+    Number.isFinite(game.hltv) ? `${twoDecimals(game.hltv)} HLTV` : null,
+
     Number.isFinite(game.kd) ? `${twoDecimals(game.kd)} K/D` : null,
     Number.isFinite(game.kr) ? `${twoDecimals(game.kr)} K/R` : null,
     Number.isFinite(game.adr) ? `${oneDecimal(game.adr)} ADR` : null,
