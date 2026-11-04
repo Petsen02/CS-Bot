@@ -251,16 +251,25 @@ export function formatMaps({ nickname, best, worst }) {
  * ESEA er en holdliga, så svaret handler om holdet. Der findes intet
  * personligt ESEA-tal der svarer til FACEIT-elo.
  *
- * Placeringen er UDLEDT af rækkefølgen i stillingen, ikke læst af et felt:
- * API'ets `position` er målt til 0 på hver eneste række, også på føreren.
+ * Etiketten tages fra navnet når det kan læses, og ellers fra turneringens
+ * eget navn. Udvælgelsen af hvilken turnering der kigges i sker på status og
+ * datoer — navnet bestemmer ingenting, netop fordi ESEA ikke navngiver
+ * konsekvent.
+ *
+ * Placeringen er UDLEDT af rækkefølgen i stillingen: API'ets `position` er
+ * målt til 0 på hver eneste række, også på føreren.
  */
-export function formatEsea({ nickname, season, region, standing }) {
+export function formatEsea({ nickname, region, standing }) {
   if (!standing) {
-    const which = season ? ` (S${season}${region ? ` ${region}` : ''})` : '';
-    return `${nickname} er ikke på et ESEA-hold i denne sæson${which}`;
+    const where = region ? ` i ${region}` : '';
+    return `${nickname} er ikke på et ESEA-hold${where} lige nu`;
   }
 
-  const parts = [nickname, `ESEA S${standing.season} ${standing.division}`];
+  const label = Number.isFinite(standing.season) && standing.division
+    ? `ESEA S${standing.season} ${standing.division}`
+    : truncate(standing.competition || 'ESEA', 60);
+
+  const parts = [nickname, label];
 
   const record = Number.isFinite(standing.won) && Number.isFinite(standing.lost)
     ? `${standing.won}-${standing.lost}`
@@ -275,6 +284,9 @@ export function formatEsea({ nickname, season, region, standing }) {
   }
 
   if (Number.isFinite(standing.points)) parts.push(`${standing.points} pts`);
+
+  // En afsluttet sæson er stadig et svar, men seeren skal vide det er historik.
+  if (standing.live === false) parts.push('afsluttet');
 
   return parts.join(SEP);
 }

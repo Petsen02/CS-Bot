@@ -49,13 +49,18 @@ export function parseDivisionName(name) {
   };
 }
 
-/** Alle championships under ESEA-organizeren, med navnet tolket. */
+/**
+ * Alle championships under ESEA-organizeren.
+ *
+ * Der filtreres IKKE på navnet. Første version gjorde, og den fandt kun 59 af
+ * 543 — resten havde ingen sæson i navnet, heriblandt den sæson der faktisk
+ * kørte. Navnet bruges nu kun til at sætte en pæn etiket på svaret; udvælgelsen
+ * sker på `status` og datoer, som er felter API'et vedligeholder.
+ */
 export function listChampionships() {
   return listCache.wrap('all', async () => {
     const all = [];
 
-    // 543 i skrivende stund. Grænsen er en sikring mod at bladre i det
-    // uendelige hvis API'et holder op med at tømme sig.
     for (let offset = 0; offset < 1000; offset += 50) {
       const payload = await request(`/organizers/${ESEA_ORGANIZER}/championships`, {
         params: { offset, limit: 50 },
@@ -68,35 +73,76 @@ export function listChampionships() {
 
     return all
       .map((item) => {
+        const id = item.championship_id ?? item.id;
+        if (!id) return null;
+
         const parsed = parseDivisionName(item.name);
-        if (!parsed) return null;
         return {
-          id: item.championship_id ?? item.id,
+          id,
           name: String(item.name ?? ''),
-          status: item.status ?? null,
-          ...parsed,
+          status: String(item.status ?? '').toLowerCase(),
+          // Regionsfeltet er API'ets eget; navnet kan være uenigt med det.
+          region: String(item.region ?? parsed?.region ?? '').toUpperCase(),
+          startedAt: toMillis(item.championship_start ?? item.subscription_start),
+          division: parsed?.division ?? null,
+          season: parsed?.season ?? null,
         };
       })
       .filter(Boolean);
   });
 }
 
-/**
- * Divisionerne i den nyeste sæson for en region.
- *
- * "Nyeste" er højeste sæsonnummer der FAKTISK har divisioner i regionen. At
- * tage højeste sæsonnummer i det hele taget ramte "S58 OCE Finals Central",
- * en aflyst finale uden hold og uden stilling.
- */
-export function pickSeason(championships, region) {
-  const inRegion = championships.filter((c) => c.region === region.toUpperCase());
-  if (inRegion.length === 0) return null;
+/** Sekunder, millisekunder eller ISO — alle tre optræder i FACEIT's svar. */
+export function toMillis(value) {
+  if (value === null || value === undefined || value === '') return null;
 
-  const season = Math.max(...inRegion.map((c) => c.season));
-  return {
-    season,
-    divisions: inRegion.filter((c) => c.season === season),
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value < 100_000_000_000 ? value * 1000 : value;
+  }
+
+  const parsed = Date.parse(String(value));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** Afsluttede og aflyste turneringer har ingen levende stilling. */
+const DEAD = new Set(['finished', 'cancelled', 'canceled', 'aborted']);
+
+/**
+ * De turneringer der er værd at lede i, bedste bud først.
+ *
+ * Rækkefølgen er hele pointen, for hver kandidat koster to API-kald:
+ *
+ *   1. Igangværende turneringer i regionen — det er næsten altid svaret.
+ *   2. Igangværende i andre regioner, hvis holdet spiller et andet sted.
+ *   3. Senest startede afsluttede, så svaret mellem to sæsoner bliver
+ *      "sidste sæson sluttede sådan" frem for ingenting.
+ *
+ * Inden for hver gruppe kommer de der ligner en ligadivision først, så en
+ * cash cup ikke æder budgettet foran den sæson spilleren rent faktisk er i.
+ *
+ * Ingen sæsonnumre, ingen navnemønstre. Det var dem der gjorde at botten kun
+ * kiggede i S55 længe efter den sæson var slut.
+ */
+export function pickCompetitions(championships, region, limit = 14) {
+  const wanted = String(region ?? '').toUpperCase();
+
+  const score = (c) => {
+    let rank = 0;
+    if (DEAD.has(c.status)) rank += 100;
+    if (c.region && wanted && c.region !== wanted) rank += 10;
+    // En ligadivision slår en cash cup når alt andet er lige.
+    if (!c.division) rank += 1;
+    return rank;
   };
+
+  return [...championships]
+    .sort((a, b) => {
+      const diff = score(a) - score(b);
+      if (diff !== 0) return diff;
+      // Nyeste først inden for samme gruppe.
+      return (b.startedAt ?? 0) - (a.startedAt ?? 0);
+    })
+    .slice(0, limit);
 }
 
 /**
@@ -167,31 +213,35 @@ export function getStandings(championshipId) {
 }
 
 /**
- * Finder spillerens hold i en sæsons divisioner.
+ * Finder spillerens hold blandt de givne turneringer.
  *
- * Divisionerne gennemsøges fra stærkeste til svageste, så et hold der optræder
- * i flere rapporteres på sit højeste niveau.
+ * Søger i den rækkefølge pickCompetitions gav, og stopper ved første træffer.
+ * En turnering uden stilling springes over frem for at stoppe søgningen — en
+ * aflyst cash cup må ikke skjule den sæson holdet faktisk spiller i.
  */
-const DIVISION_ORDER = ['Advanced', 'Main', 'Intermediate', 'Entry', 'Open'];
-
-export async function findTeamStanding(teamIds, divisions) {
+export async function findTeamStanding(teamIds, competitions) {
   const wanted = new Set(teamIds.filter(Boolean));
   if (wanted.size === 0) return null;
 
-  const ordered = [...divisions].sort(
-    (a, b) => DIVISION_ORDER.indexOf(a.division) - DIVISION_ORDER.indexOf(b.division),
-  );
-
-  for (const division of ordered) {
+  for (const competition of competitions) {
     let standings;
     try {
-      standings = await getStandings(division.id);
+      standings = await getStandings(competition.id);
     } catch {
-      continue; // En division uden stilling må ikke stoppe søgningen.
+      continue;
     }
 
     const row = standings.find((entry) => wanted.has(entry.teamId));
-    if (row) return { ...row, division: division.division, season: division.season, total: standings.length };
+    if (row) {
+      return {
+        ...row,
+        total: standings.length,
+        division: competition.division,
+        season: competition.season,
+        competition: competition.name,
+        live: !DEAD.has(competition.status),
+      };
+    }
   }
 
   return null;

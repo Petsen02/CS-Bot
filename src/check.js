@@ -21,7 +21,7 @@ import {
   getRanking,
 } from './faceit.js';
 import { readMatchStats, didWin } from './commands.js';
-import { listChampionships, pickSeason, getStandings, findTeamStanding } from './esea.js';
+import { listChampionships, pickCompetitions, getStandings, findTeamStanding } from './esea.js';
 import { getPlayerTeams } from './faceit.js';
 import { levelFor, nextLevel } from './elo.js';
 
@@ -242,53 +242,50 @@ async function run() {
   const championships = await step('listChampionships', () => listChampionships());
 
   if (Array.isArray(championships)) {
-    report(championships.length > 0 ? PASS : FAIL, 'divisioner fundet', String(championships.length));
+    report(championships.length > 0 ? PASS : FAIL, 'turneringer under ESEA',
+      String(championships.length));
 
-    const seasons = [...new Set(championships.map((c) => c.season))].sort((a, b) => b - a);
-    console.log(`         sæsoner: ${seasons.slice(0, 8).join(', ')}`);
+    const live = championships.filter((c) => !['finished', 'cancelled', 'canceled'].includes(c.status));
+    report(live.length > 0 ? PASS : WARN, 'igangværende',
+      live.length ? String(live.length) : 'ingen — så vises seneste afsluttede');
 
-    const season = pickSeason(championships, defaultRegion);
-    if (!season) {
-      report(FAIL, `${defaultRegion}-sæson`, 'ingen divisioner i regionen');
-    } else {
-      report(PASS, `nyeste ${defaultRegion}-sæson`, `S${season.season}`);
-      console.log(`         divisioner: ${season.divisions.map((d) => d.division).join(', ')}`);
+    const candidates = pickCompetitions(championships, defaultRegion);
+    report(candidates.length > 0 ? PASS : FAIL, `kandidater for ${defaultRegion}`,
+      String(candidates.length));
+    for (const c of candidates.slice(0, 6)) {
+      console.log(`           [${String(c.status).padEnd(10)}] ${c.name}`);
+    }
 
-      // Stillingen er det !esea lever af. Er den tom, er kommandoen død.
-      const division = season.divisions[0];
-      const standings = await step(`getStandings (${division.division})`,
-        () => getStandings(division.id));
-
+    const first = candidates[0];
+    if (first) {
+      const standings = await step(`getStandings (${first.name})`, () => getStandings(first.id));
       if (Array.isArray(standings)) {
-        report(standings.length > 0 ? PASS : FAIL, 'hold i stillingen', String(standings.length));
-
+        report(standings.length > 0 ? PASS : WARN, 'hold i stillingen', String(standings.length));
         const top = standings[0];
         if (top) {
           expect('holdnavn', top.teamName);
-          // DETTE er den sidste ubekræftede antagelse: at team-id'et i
-          // stillingen er det samme id som /players/{id}/teams giver.
           expect('hold-id', top.teamId);
           console.log(`         top 3: ${standings.slice(0, 3)
             .map((r) => `#${r.rank} ${r.teamName} ${r.won}-${r.lost}`).join(SEP_CHECK)}`);
         }
       }
+    }
 
-      if (player.playerId) {
-        const teams = await step('getPlayerTeams', () => getPlayerTeams(player.playerId));
-        if (Array.isArray(teams)) {
-          report(teams.length > 0 ? PASS : WARN, 'spillerens hold', String(teams.length));
-          for (const team of teams.slice(0, 8)) {
-            console.log(`           ${team.name}  ${team.teamId}`);
-          }
+    if (player.playerId) {
+      const teams = await step('getPlayerTeams', () => getPlayerTeams(player.playerId));
+      if (Array.isArray(teams)) {
+        report(teams.length > 0 ? PASS : WARN, 'spillerens hold', String(teams.length));
+        for (const team of teams.slice(0, 8)) {
+          console.log(`           ${team.name}  ${team.teamId}`);
+        }
 
-          const standing = await findTeamStanding(teams.map((t) => t.teamId), season.divisions);
-          if (standing) {
-            report(PASS, 'spilleren fundet i en division',
-              `${standing.division} — ${standing.teamName} #${standing.rank}`);
-          } else {
-            // Gyldigt svar: de fleste spiller ikke ESEA.
-            report(WARN, 'spilleren i en division', 'ikke på et hold i denne sæson');
-          }
+        const standing = await findTeamStanding(teams.map((t) => t.teamId), candidates);
+        if (standing) {
+          report(PASS, 'holdet fundet',
+            `${standing.competition} — ${standing.teamName} #${standing.rank}`);
+        } else {
+          report(WARN, 'holdet i en turnering',
+            `ikke fundet i de ${candidates.length} mest sandsynlige`);
         }
       }
     }

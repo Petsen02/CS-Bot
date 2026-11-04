@@ -152,18 +152,21 @@ er ikke oplagt:
 
 - ESEA er **ikke** en "league". Alle `/leagues`-ruter svarer 404.
 - ESEA er en **organizer**: `08b06cfc-74d0-454b-9a51-feda4b6b18da`.
-- Divisionerne er **championships** under den, 543 i alt, navngivet
-  `ESEA League EU Advanced S55 Qualifier`. Region, division og sæson står
-  **kun i navnet** — ikke i felter. 402 af de 543 er noget andet: finaler,
-  relegation, ESL Impact.
+- Divisionerne er **championships** under den — 543 i alt.
 - Stillingen kræver to kald: `/leaderboards/championships/{id}` giver et
   `leaderboard_id`, og `/leaderboards/{leaderboard_id}` giver rækkerne.
 - I et holdleaderboard er feltet `player` **holdet**, og `user_id` dets id.
 
-Botten finder den nyeste sæson der faktisk har divisioner i kanalens region,
-søger dem igennem fra Advanced og nedefter, og rapporterer holdet på sit
-højeste niveau. Divisionslisten og stillingerne caches en halv time, så
-kommandoen normalt koster nul kald — en division spiller en kamp om ugen.
+**Udvælgelsen sker på status og datoer, ikke på navne.** Første version ledte
+efter mønsteret `ESEA League EU Advanced S55 Qualifier` og fandt kun 59 af de
+543 — 460 har slet ingen sæson i navnet, og den sæson der faktisk kørte var
+ikke blandt dem. Botten svarede derfor om S55 længe efter den var slut.
+
+Nu rangeres turneringerne: igangværende i kanalens region først, så
+igangværende andre steder, så de senest startede afsluttede. Navnet bruges kun
+som etiket i svaret, og kan det ikke læses, vises turneringens eget navn.
+Er sæsonen slut, står der `afsluttet` til sidst, så historik ikke forveksles
+med en igangværende stilling.
 
 **Placeringen er udledt, ikke læst.** API'ets `position` er 0 på hver eneste
 række, også på føreren med flest point, så stillingen sorteres efter point og

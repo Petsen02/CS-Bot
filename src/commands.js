@@ -16,7 +16,7 @@ import {
   isLive,
 } from './faceit.js';
 import { nextLevel, winsNeeded, levelFor } from './elo.js';
-import { listChampionships, pickSeason, findTeamStanding } from './esea.js';
+import { listChampionships, pickCompetitions, findTeamStanding } from './esea.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
   SEP,
@@ -482,19 +482,14 @@ export async function commandEsea({ channel, argument }) {
     return `${player.nickname} er ikke på noget FACEIT-hold`;
   }
 
-  const season = pickSeason(championships, region);
-  if (!season) {
-    return `Ingen ESEA-divisioner fundet for ${region}`;
+  const competitions = pickCompetitions(championships, region);
+  if (competitions.length === 0) {
+    return `Fandt ingen ESEA-turneringer${SEP}prøv igen senere`;
   }
 
-  const standing = await findTeamStanding(teams.map((t) => t.teamId), season.divisions);
+  const standing = await findTeamStanding(teams.map((t) => t.teamId), competitions);
 
-  return formatEsea({
-    nickname: player.nickname,
-    season: season.season,
-    region,
-    standing,
-  });
+  return formatEsea({ nickname: player.nickname, region, standing });
 }
 
 // ---- Admin ---------------------------------------------------------------
