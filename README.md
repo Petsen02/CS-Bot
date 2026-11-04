@@ -81,10 +81,18 @@ betjene flere streamere uden at de ser hinandens spillere.
 `!nextesea`, `!team` og `!eseateam` er samme kommandoer som `!næsteesea`,
 `!hold` og `!eseahold` — dansk og engelsk, så ingen skal gætte.
 
-`!hold` viser holdkammeraterne i den igangværende kamp. Et FACEIT-party er
-ikke i Data API'et, men har man køet sammen, **er** partyet det hold man står
-på — så i praksis svarer det på det samme. Spilleren selv udelades fra listen;
-man ved godt man er der, og pladsen er bedre brugt på de andre.
+`!hold` viser holdkammeraterne i den igangværende kamp. Spilleren selv
+udelades; man ved godt man er der, og pladsen er bedre brugt på de andre.
+
+**Partyet selv er ikke tilgængeligt.** Data API'et dækker spillere, kampe,
+hold, turneringer, ranglister og hubs — men ingen parties. Har man køet
+sammen, **er** partyet dog det hold man står på i kampen, så svaret er det
+samme så snart kampen findes. `!csbotesea party <nick>` prøver det interne
+API, hvis det nogensinde skulle dukke op dér.
+
+For en ESEA-kamp findes opstillingen først når kamprummet gør — altså fra
+vetoen. Før det er holdet ikke udtaget, og der er bogstaveligt talt intet at
+læse.
 
 `!eseahold` viser ESEA-holdets faste trup. Uden levels: holdlisten indeholder
 dem ikke, og et opslag pr. spiller ville koste fem kald for at pynte på en

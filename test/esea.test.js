@@ -309,3 +309,23 @@ test('parseMatchId afviser alt der ikke er et match-id', async () => {
   assert.equal(parseMatchId(''), null);
   assert.equal(parseMatchId(null), null);
 });
+
+/**
+ * Det interne web-API bruges kun til det Data API'et slet ikke har.
+ * Værtsbegrænsningen findes så en chatkommando aldrig kan blive til et åbent
+ * hent-hvad-som-helst.
+ */
+test('fetchInternal afviser alt der ikke er FACEIT over https', async () => {
+  const { fetchInternal } = await import('../src/internal.js');
+
+  for (const url of [
+    'https://example.com/api/x',
+    'http://www.faceit.com/api/x',
+    'https://evil.faceit.com.attacker.net/api/x',
+    'file:///etc/passwd',
+    'ikke en url',
+  ]) {
+    const { status } = await fetchInternal(url);
+    assert.equal(status, 0, `måtte ikke hentes: ${url}`);
+  }
+});

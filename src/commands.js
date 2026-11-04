@@ -1,5 +1,6 @@
 import { config, parsePlayerRef } from './config.js';
 import { gitRevision } from './version.js';
+import { probeInternal, partyCandidates } from './internal.js';
 import { channels } from './channels.js';
 import { store } from './store.js';
 import { logger } from './logger.js';
@@ -680,6 +681,24 @@ export async function commandEseaDebug({ channel, argument: raw }) {
     parts.push(info.factions.join(' · ') || 'ingen hold');
 
     return parts.join(SEP);
+  }
+
+  // "party <nick>": findes et FACEIT-party overhovedet i det interne API?
+  // Data API'et har ingen parties, så det er den eneste mulige kilde.
+  if (/^party\s+/i.test(argument ?? '')) {
+    const ref = parsePlayerRef(argument.replace(/^party\s+/i, ''));
+    if (!ref) return 'Brug: !csbotesea party <nick>';
+
+    const player = await resolvePlayer(ref);
+    const results = await probeInternal(partyCandidates(player.playerId));
+    const ok = results.filter((r) => r.status === 200 && r.shape !== 'tomt');
+
+    if (ok.length === 0) {
+      const codes = [...new Set(results.map((r) => r.status || 'net'))].join('/');
+      return `party${SEP}ingen af ${results.length} ruter svarede brugbart (${codes})`;
+    }
+
+    return ok.map((r) => `${r.path} → ${r.shape}`).join(SEP);
   }
 
   // "matches <nick>": hvad kampprogram-ruten svarer for spillerens
