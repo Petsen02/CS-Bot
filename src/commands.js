@@ -16,7 +16,6 @@ import {
   isLive,
 } from './faceit.js';
 import { nextLevel, winsNeeded, levelFor } from './elo.js';
-import { hltvRating } from './rating.js';
 import {
   listChampionships,
   pickCompetitions,
@@ -312,18 +311,6 @@ export function readMatchStats(payload, playerId) {
         entryKills: num('First Kills', 'Entry Wins'),
         entryAttempts: num('Entry Count'),
         clutches: add(num('1v1Wins'), num('1v2Wins')),
-
-        // FACEIT giver ingen rating, men HLTV 1.0 kan regnes præcist af de
-        // felter vi har. Se src/rating.js for hvorfor det ikke er et gæt.
-        hltv: hltvRating({
-          kills,
-          deaths,
-          rounds,
-          doubles: num('Double Kills'),
-          triples: num('Triple Kills'),
-          quads: num('Quadro Kills'),
-          aces: num('Penta Kills'),
-        }),
       };
     }
   }
