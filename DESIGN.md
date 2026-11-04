@@ -319,7 +319,28 @@ stedet udledes sæsonen af ligaens egen sæsonliste ved hvert opslag:
 Kun `ESEA_LEAGUE_ID` står i `.env`, så et skiftet liga-id ikke kræver en
 kodeændring.
 
-### Målt: vejen er forkert
+### Målt: ESEA er ikke i Data API'et
+
+Afgjort med tre runder mod det rigtige API, med to forskellige spillere:
+
+- `/leagues/{id}` svarer 404 på begge UUID'er fra den offentlige ESEA-URL, på
+  `esea`, `ESEA` og `esea-league`, og `/leagues/{id}/seasons/{n}` svarer 404
+  for numeriske sæsoner. (At UUID-sæsonen gav 400 og tallet gav 404 viser at
+  sæsonen skal være et tal — men ligaen findes stadig ikke.)
+- Ingen af 400+ gennemsøgte cs2-championships har "esea" i navnet.
+- Hverken `/players/{id}/teams`, `/tournaments` eller `/hubs` nævner ESEA for
+  en spiller med 7 hold, 30 turneringer og 6 hubs. Turneringslisten er gamle
+  CS:GO-turneringer, ikke ESEA-sæsoner.
+
+`!esea` er derfor slået fra i `src/index.js` — én udkommenteret linje, så den
+kan slås til igen uden at skulle skrives om. `src/esea.js` og `probe-esea`
+bliver stående.
+
+Tilbage står kun FACEIT's interne web-API, som driver deres egen ESEA-side.
+Den er udokumenteret og kan ændre sig uden varsel. Fravalgt bevidst: en bot
+hvor en del knækker af sig selv er dyrere end en bot uden den del.
+
+### Første runde: vejen var forkert
 
 Et rigtigt kald afviste antagelsen. `/leagues/{league_id}` svarer **404** på
 liga-id'et fra den offentlige ESEA-URL. Enten er det id ikke det Data API'et

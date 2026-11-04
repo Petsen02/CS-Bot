@@ -14,7 +14,6 @@ import {
   commandLobby,
   commandTop,
   commandMaps,
-  commandEsea,
   commandCommands,
   commandPlayerList,
   commandAddPlayer,
@@ -45,9 +44,14 @@ const handlers = new Map([
   // Erstatter LoL-bottens !chal: viser land og region frem for cutoffs.
   ['top', { level: 'everyone', run: commandTop }],
   ['maps', { level: 'everyone', run: commandMaps }],
-  // ESEA er en holdliga, så svaret er holdets division og placering — derfor
-  // sin egen kommando frem for en linje i !rank.
-  ['esea', { level: 'everyone', run: commandEsea }],
+  // !esea er slået fra. ESEA findes ikke i FACEIT's Data API: alle
+  // /leagues-ruter svarer 404, ingen af 400+ gennemsøgte championships har
+  // "esea" i navnet, og hverken hold, turneringer eller hubs på en spillers
+  // profil nævner den. En kommando der altid fejler er værre end ingen.
+  //
+  // src/esea.js og `npm run probe-esea` bliver stående: åbner FACEIT ligaen i
+  // API'et, er det denne ene linje der skal slås til igen.
+  // ['esea', { level: 'everyone', run: commandEsea }],
   ['oldcommands', { level: 'everyone', run: commandCommands }],
   ['oldplayerlist', { level: 'mod', run: commandPlayerList }],
   ['oldaddplayer', { level: 'mod', run: commandAddPlayer }],
