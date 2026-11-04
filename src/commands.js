@@ -23,6 +23,7 @@ import {
   isLiveCompetition,
   parseTeamId,
   probeTeamRoutes,
+  recentCompetitions,
 } from './esea.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
@@ -512,8 +513,26 @@ export async function commandEseaDebug({ channel, argument }) {
   // sæson findes ikke under organizeren, så den må nås fra holdets side — og
   // hvilke ruter der findes, kan kun afgøres ved at spørge.
   const teamId = parseTeamId(argument);
+
+  // Et nick i stedet for et hold-id: vis hvilke turneringer spillerens egne
+  // kampe hører til. Det er den sidste officielle vej til den kørende sæson.
   if (argument && !teamId) {
-    return 'Brug: !csbotesea [team-id eller faceit.com/teams/...-link]';
+    const ref = parsePlayerRef(argument);
+    if (!ref) return 'Brug: !csbotesea [nick, team-id eller FACEIT-link]';
+
+    const player = await resolvePlayer(ref);
+    const competitions = await recentCompetitions(player.playerId);
+
+    if (competitions.length === 0) {
+      return `${player.nickname}${SEP}ingen turneringer nævnt i de seneste kampe`;
+    }
+
+    const shown = competitions.slice(0, 4).map((c) => {
+      const kind = c.type ? ` [${c.type}]` : '';
+      return `${c.name}${kind}${c.id ? ` ${c.id.slice(0, 8)}` : ''}`;
+    });
+
+    return `${player.nickname}${SEP}${shown.join(SEP)}`;
   }
 
   if (teamId) {

@@ -335,3 +335,54 @@ export async function probeTeamRoutes(teamId) {
 
   return results;
 }
+
+/**
+ * Finder de turneringer en spiller faktisk har spillet i for nylig.
+ *
+ * Sidste officielle vej. Hverken organizerens championships eller holdets egne
+ * ruter kender den kørende ESEA-sæson — men hver kamp hører til en turnering,
+ * og en spiller der er aktiv i ligaen har den i sin historik.
+ *
+ * Historikposterne nævner måske turneringen direkte; gør de ikke, hentes
+ * kampens detaljer. Antallet af opslag er begrænset, for det her skal kunne
+ * køre fra en chatkommando.
+ *
+ * @returns {Promise<Array<{id: string|null, name: string, type: string|null, at: number|null}>>}
+ */
+export async function recentCompetitions(playerId, { matches = 20, lookups = 6 } = {}) {
+  const { getHistory, getMatch } = await import('./faceit.js');
+
+  const history = await getHistory(playerId, { limit: matches });
+  const found = new Map();
+  let spent = 0;
+
+  for (const item of history) {
+    const at = (item.finished_at ?? item.started_at ?? 0) * 1000;
+
+    // Nævner historikposten turneringen selv, er det gratis.
+    let id = item.competition_id ?? null;
+    let name = item.competition_name ?? null;
+    let type = item.competition_type ?? null;
+
+    if (!name && item.match_id && spent < lookups) {
+      spent += 1;
+      try {
+        const match = await getMatch(item.match_id);
+        id = match?.competition_id ?? id;
+        name = match?.competition_name ?? name;
+        type = match?.competition_type ?? type;
+      } catch {
+        continue;
+      }
+    }
+
+    if (!name) continue;
+
+    const key = id ?? name;
+    if (!found.has(key) || (found.get(key).at ?? 0) < at) {
+      found.set(key, { id, name: String(name), type: type ? String(type) : null, at });
+    }
+  }
+
+  return [...found.values()].sort((a, b) => (b.at ?? 0) - (a.at ?? 0));
+}
