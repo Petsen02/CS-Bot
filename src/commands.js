@@ -16,7 +16,12 @@ import {
   isLive,
 } from './faceit.js';
 import { nextLevel, winsNeeded, levelFor } from './elo.js';
-import { listChampionships, pickCompetitions, findTeamStanding } from './esea.js';
+import {
+  listChampionships,
+  pickCompetitions,
+  findTeamStanding,
+  isLiveCompetition,
+} from './esea.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
   SEP,
@@ -490,6 +495,40 @@ export async function commandEsea({ channel, argument }) {
   const standing = await findTeamStanding(teams.map((t) => t.teamId), competitions);
 
   return formatEsea({ nickname: player.nickname, region, standing });
+}
+
+/**
+ * Hvad botten faktisk ser hos ESEA.
+ *
+ * Findes fordi fejlsøgning ellers kræver en terminal, og en streamer sidder
+ * lige så ofte med en telefon. Den svarer i chatten med de tal der afgør
+ * hvorfor !esea siger hvad den siger: hvor mange turneringer der blev hentet,
+ * hvor mange der er igangværende, og hvilke den leder i først.
+ */
+export async function commandEseaDebug({ channel }) {
+  const { region } = channels.get(channel);
+  const championships = await listChampionships();
+
+  const live = championships.filter(isLiveCompetition);
+  const candidates = pickCompetitions(championships, region);
+
+  const parts = [
+    `${championships.length} turneringer`,
+    `${live.length} igangværende`,
+  ];
+
+  // Hvilken forespørgsel der fandt de levende — afslører om type-varianterne
+  // virker, uden at nogen skal køre en sonde.
+  const sources = [...new Set(live.map((c) => c.foundVia))];
+  if (sources.length) parts.push(`fundet via ${sources.join('+')}`);
+
+  if (candidates.length === 0) return `ESEA: ${parts.join(SEP)}${SEP}ingen at søge i`;
+
+  // Navnene er det der viser om den rigtige sæson er med.
+  const names = candidates.slice(0, 3).map((c) => c.name).join(' · ');
+  parts.push(`søger i ${candidates.length}: ${names}`);
+
+  return `ESEA ${region}${SEP}${parts.join(SEP)}`;
 }
 
 // ---- Admin ---------------------------------------------------------------

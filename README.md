@@ -162,6 +162,11 @@ efter mønsteret `ESEA League EU Advanced S55 Qualifier` og fandt kun 59 af de
 543 — 460 har slet ingen sæson i navnet, og den sæson der faktisk kørte var
 ikke blandt dem. Botten svarede derfor om S55 længe efter den var slut.
 
+Turneringerne hentes i flere omgange — `type=ongoing`, `type=upcoming` og
+uden parameter. Uden `type` returnerer endpointet kun afsluttede, og botten
+svarede derfor om en sæson der var slut, selvom holdet spillede. Afviser
+API'et en variant, springes den over frem for at koste hele listen.
+
 Nu rangeres turneringerne: igangværende i kanalens region først, så
 igangværende andre steder, så de senest startede afsluttede. Navnet bruges kun
 som etiket i svaret, og kan det ikke læses, vises turneringens eget navn.
@@ -192,6 +197,7 @@ andre bots i samme chat; det kan skiftes med `ADMIN_PREFIX` i `.env`.
 | `!csbotremovemain <nick>` | mod | Fjerner main |
 | `!csbotregion EU` | mod | Sætter kanalens region — `EU`, `NA`, `SA`, `AS`, `OCE` |
 | `!csbotcountry dk` | mod | Sætter landet `!top` måler mod |
+| `!csbotesea` | mod | Diagnose: hvad botten ser hos ESEA, og hvor den leder |
 
 ## Level og elo
 

@@ -25,6 +25,7 @@ import {
   commandTop,
   commandMaps,
   commandEsea,
+  commandEseaDebug,
   commandCommands,
   commandPlayerList,
   commandAddPlayer,
@@ -72,6 +73,8 @@ const handlers = new Map([
   [`${ADMIN}removemain`, { level: 'mod', run: commandRemoveMain }],
   [`${ADMIN}region`, { level: 'mod', run: commandRegion }],
   [`${ADMIN}country`, { level: 'mod', run: commandCountry }],
+  // Diagnose i chatten, så fejlsøgning ikke kræver en terminal.
+  [`${ADMIN}esea`, { level: 'mod', run: commandEseaDebug }],
 ]);
 
 /**

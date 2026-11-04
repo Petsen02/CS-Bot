@@ -57,27 +57,61 @@ export function parseDivisionName(name) {
  * kørte. Navnet bruges nu kun til at sætte en pæn etiket på svaret; udvælgelsen
  * sker på `status` og datoer, som er felter API'et vedligeholder.
  */
-export function listChampionships() {
-  return listCache.wrap('all', async () => {
-    const all = [];
+/**
+ * Hvilke `type`-varianter der spørges om.
+ *
+ * `/organizers/{id}/championships` ser ud til kun at give afsluttede
+ * turneringer når man ikke beder om andet — botten fandt 543, ingen af dem
+ * igangværende, og svarede derfor om en sæson der var slut. De to første
+ * varianter er dem der kan indeholde den kørende sæson; den sidste, uden
+ * parameter, er historikken.
+ *
+ * Afviser API'et en variant, springes den over. Ingen af dem er afgørende
+ * alene, og en 400 på "ongoing" må ikke koste hele listen.
+ */
+const TYPES = ['ongoing', 'upcoming', null];
 
-    for (let offset = 0; offset < 1000; offset += 50) {
-      const payload = await request(`/organizers/${ESEA_ORGANIZER}/championships`, {
-        params: { offset, limit: 50 },
-      });
+async function fetchType(type) {
+  const all = [];
 
-      const items = payload?.items ?? [];
-      all.push(...items);
-      if (items.length < 50) break;
+  for (let offset = 0; offset < 1000; offset += 50) {
+    const params = { offset, limit: 50 };
+    if (type) params.type = type;
+
+    let payload;
+    try {
+      payload = await request(`/organizers/${ESEA_ORGANIZER}/championships`, { params });
+    } catch {
+      return all; // Varianten duer ikke; behold hvad den nåede at give.
     }
 
-    return all
-      .map((item) => {
+    const items = payload?.items ?? [];
+    all.push(...items);
+    if (items.length < 50) break;
+  }
+
+  return all;
+}
+
+/**
+ * Alle championships under ESEA-organizeren, samlet fra hver `type`.
+ *
+ * Der filtreres IKKE på navnet. Første version gjorde, og den fandt kun 59 af
+ * 543 — resten havde ingen sæson i navnet, heriblandt den sæson der faktisk
+ * kørte. Navnet bruges nu kun til at sætte en pæn etiket på svaret;
+ * udvælgelsen sker på `status` og datoer, som er felter API'et vedligeholder.
+ */
+export function listChampionships() {
+  return listCache.wrap('all', async () => {
+    const seen = new Map();
+
+    for (const type of TYPES) {
+      for (const item of await fetchType(type)) {
         const id = item.championship_id ?? item.id;
-        if (!id) return null;
+        if (!id || seen.has(id)) continue;
 
         const parsed = parseDivisionName(item.name);
-        return {
+        seen.set(id, {
           id,
           name: String(item.name ?? ''),
           status: String(item.status ?? '').toLowerCase(),
@@ -86,9 +120,13 @@ export function listChampionships() {
           startedAt: toMillis(item.championship_start ?? item.subscription_start),
           division: parsed?.division ?? null,
           season: parsed?.season ?? null,
-        };
-      })
-      .filter(Boolean);
+          // Hvilken forespørgsel der fandt den — vises i !csbotesea.
+          foundVia: type ?? 'historik',
+        });
+      }
+    }
+
+    return [...seen.values()];
   });
 }
 
@@ -106,6 +144,11 @@ export function toMillis(value) {
 
 /** Afsluttede og aflyste turneringer har ingen levende stilling. */
 const DEAD = new Set(['finished', 'cancelled', 'canceled', 'aborted']);
+
+/** Om turneringen stadig kan have en stilling der flytter sig. */
+export function isLiveCompetition(competition) {
+  return !DEAD.has(String(competition?.status ?? '').toLowerCase());
+}
 
 /**
  * De turneringer der er værd at lede i, bedste bud først.
