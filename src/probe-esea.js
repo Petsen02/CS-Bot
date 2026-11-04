@@ -118,7 +118,11 @@ async function run() {
     }
   }
 
-  // Spor 1: er sæsonen et tal?
+  // Spor 1 og 2 er udtømte i tidligere runder og springes over med SKIP=1,
+  // så søgningen kan køres alene uden at vente på 400 championships.
+  const skipOld = process.env.SKIP === '1';
+
+  if (!skipOld) {
   console.log('--- spor 1: sæson som tal i stedet for UUID ---');
   for (const season of [59, 58, 1]) {
     await show(`leagues/{liga}/seasons/${season}`, `/leagues/${LEAGUE}/seasons/${season}`);
@@ -126,6 +130,59 @@ async function run() {
   // Måske er liga-id'et slet ikke en UUID.
   for (const league of ['esea', 'ESEA', 'esea-league']) {
     await show(`leagues/${league}`, `/leagues/${encodeURIComponent(league)}`);
+  }
+  }
+
+  // Spor 0: søgningen. /search/players virkede til nickopslaget, så
+  // /search/championships og /search/organizers er langt mere oplagte end at
+  // bladre gennem en liste der måske slet ikke indeholder ligaer.
+  console.log('--- spor 0: søg efter ESEA ---');
+  for (const name of ['ESEA League - Season 59', 'ESEA League', 'ESEA']) {
+    const body = await show(`search/championships "${name}"`, '/search/championships',
+      { name, game: config.faceit.game, offset: 0, limit: 20 });
+
+    for (const item of body?.items ?? []) {
+      const id = item.competition_id ?? item.championship_id ?? item.id ?? '';
+      console.log(`           ${item.name}`);
+      console.log(`             id=${id} status=${item.status ?? '?'} region=${item.region ?? '?'}`);
+      if (item.organizer_id) console.log(`             organizer=${item.organizer_id}`);
+    }
+
+    // Første træffer er nok til at følge sporet hele vejen.
+    const hit = (body?.items ?? []).find((item) => /esea/i.test(String(item.name ?? '')));
+    if (hit) {
+      const id = hit.competition_id ?? hit.championship_id ?? hit.id;
+      console.log(`\n   >>> følger "${hit.name}" (${id})`);
+
+      await show('  championships/{id}', `/championships/${id}`);
+      const board = await show('  leaderboards/championships/{id}',
+        `/leaderboards/championships/${id}`, { limit: 5 });
+      if (board?.items?.[0]) {
+        console.log(`         items[0]: ${Object.keys(board.items[0]).join(', ')}`);
+      }
+      await show('  championships/{id}/subscriptions',
+        `/championships/${id}/subscriptions`, { limit: 5 });
+
+      if (hit.organizer_id) {
+        await show('  organizers/{id}/championships',
+          `/organizers/${hit.organizer_id}/championships`, { limit: 10 });
+      }
+      break;
+    }
+  }
+
+  for (const name of ['ESEA', 'ESL FACEIT Group']) {
+    const body = await show(`search/organizers "${name}"`, '/search/organizers',
+      { name, offset: 0, limit: 10 });
+    for (const item of body?.items ?? []) {
+      console.log(`           ${item.name}  id=${item.organizer_id ?? item.id ?? ''}`);
+    }
+  }
+
+  if (skipOld) {
+    console.log('\n(spor 1, 2 og 4 sprunget over — SKIP=1)');
+    console.log('\nFærdig. Send hele output\'et videre.');
+    return;
   }
 
   // Spor 2: find ESEA blandt alle cs2-championships.
