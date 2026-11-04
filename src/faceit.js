@@ -193,6 +193,38 @@ export function refreshPlayer(playerId) {
   });
 }
 
+/**
+ * Kampstatus, normaliseret.
+ *
+ * MÅLT: /players/{id}/history svarer "finished" med SMÅT, mens /matches/{id}
+ * svarer "FINISHED" med STORT. En direkte sammenligning mod "FINISHED" fandt
+ * derfor aldrig en færdig kamp i historikken — !lastgame svarede "ingen
+ * færdige kampe" for alle, og !lobby troede hver eneste afsluttede kamp var
+ * i gang. Alt sammenlignes nu i versaler.
+ */
+export function normalizeStatus(status) {
+  if (status === null || status === undefined || status === '') return null;
+  return String(status).trim().toUpperCase();
+}
+
+/** Kampe uden status kommer fra historikken, hvor de altid er spillet færdig. */
+export function isFinished(status) {
+  const value = normalizeStatus(status);
+  return value === null || value === 'FINISHED';
+}
+
+/**
+ * Om kampen kører lige nu.
+ *
+ * Aflyste og afbrudte kampe er hverken færdige eller i gang. Uden dem her
+ * ville !lobby vise en aflyst kamp som "igangværende" i al evighed.
+ */
+export function isLive(status) {
+  const value = normalizeStatus(status);
+  if (value === null) return false;
+  return !['FINISHED', 'CANCELLED', 'CANCELED', 'ABORTED'].includes(value);
+}
+
 /** Slår op ud fra hvad en mod skrev: nick, SteamID64 eller profillink. */
 export function resolvePlayer(ref) {
   return ref.kind === 'steam'
@@ -265,17 +297,38 @@ export function getRanking(region, playerId, country) {
       { params: { country, limit: 1 } },
     );
 
-    // Placeringen har optrådt både som `position` og som en start-offset på
-    // det returnerede udsnit. Begge læses, 1-indekseret som chatten forventer.
-    const position = Number(
-      payload?.position ?? payload?.current_page ?? payload?.start,
-    );
-
-    return {
-      position: Number.isFinite(position) && position > 0 ? position : null,
-      raw: payload,
-    };
+    return { position: readPosition(payload, playerId), raw: payload };
   });
+}
+
+/**
+ * Placeringen ud af et rankings-svar.
+ *
+ * MÅLT: svaret har nøglerne position, items, start, end — altså et udsnit af
+ * ranglisten omkring spilleren, plus en position.
+ *
+ * For en uplaceret spiller er position 0, hvilket er et gyldigt svar og ikke
+ * et manglende felt: FACEIT's ranglister dækker kun Challenger-feltet. Derfor
+ * er 0 "uden for listen", ikke "ved ikke".
+ *
+ * Er position fraværende, udledes placeringen i stedet af udsnittet: spillerens
+ * indeks i items lagt til start. Det er robust over for om position skulle vise
+ * sig at være 0-indekseret, hvilket ikke kunne afgøres af en uplaceret spiller.
+ */
+export function readPosition(payload, playerId) {
+  const position = Number(payload?.position);
+  if (Number.isFinite(position) && position > 0) return position;
+
+  const items = payload?.items;
+  if (Array.isArray(items) && playerId) {
+    const index = items.findIndex((item) => (item?.player_id ?? item?.id) === playerId);
+    if (index !== -1) {
+      const start = Number(payload?.start);
+      return (Number.isFinite(start) ? start : 0) + index + 1;
+    }
+  }
+
+  return null;
 }
 
 /** Regionens leaderboard — bruges til at vise hvad Challenger-grænsen er. */

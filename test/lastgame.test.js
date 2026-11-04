@@ -31,7 +31,9 @@ function payload(overrides = {}, roundOverrides = {}) {
                   'Penta Kills': '1',
                   'Quadro Kills': '0',
                   'Triple Kills': '2',
-                  'Entry Count': '4',
+                  'First Kills': '2',
+                  'Entry Count': '5',
+                  'Entry Wins': '3',
                   '1v1Wins': '1',
                   '1v2Wins': '1',
                   Result: '1',
@@ -64,7 +66,9 @@ test('readMatchStats henter alle de felter !lastgame viser', () => {
   assert.equal(stats.mvps, 5);
   assert.equal(stats.aces, 1);
   assert.equal(stats.triples, 2);
-  assert.equal(stats.entryKills, 4);
+  // "Entry Count" er forsøg, ikke kills — entryKills skal tage First Kills.
+  assert.equal(stats.entryKills, 2);
+  assert.equal(stats.entryAttempts, 5);
   assert.equal(stats.clutches, 2, '1v1 og 1v2 skal lægges sammen');
   assert.equal(stats.rounds, 22);
 });
@@ -217,4 +221,64 @@ test('formatMultiKill nævner kun den højeste', () => {
   assert.equal(formatMultiKill({ aces: 0, quads: 0, triples: 3 }), '3 triple');
   assert.equal(formatMultiKill({ aces: 0, quads: 0, triples: 0 }), null);
   assert.equal(formatMultiKill({}), null);
+});
+
+/**
+ * Regressionstests for fejl fundet mod det rigtige FACEIT API.
+ *
+ * Historikken svarer "finished" med småt, mens /matches/{id} svarer "FINISHED"
+ * med stort. Den forskel brød to kommandoer på hver sin måde, så den er
+ * fastholdt her.
+ */
+test('isFinished accepterer begge skrivemåder af status', async () => {
+  const { isFinished, isLive, normalizeStatus } = await import('../src/faceit.js');
+
+  // MÅLT fra /players/{id}/history: små bogstaver.
+  assert.equal(isFinished('finished'), true);
+  // MÅLT fra /matches/{id}: store bogstaver.
+  assert.equal(isFinished('FINISHED'), true);
+  // Historikposter uden status er spillet færdig.
+  assert.equal(isFinished(undefined), true);
+  assert.equal(isFinished('ONGOING'), false);
+
+  assert.equal(normalizeStatus(' finished '), 'FINISHED');
+  assert.equal(normalizeStatus(null), null);
+});
+
+test('isLive udelukker aflyste og afbrudte kampe', async () => {
+  const { isLive } = await import('../src/faceit.js');
+
+  assert.equal(isLive('ONGOING'), true);
+  assert.equal(isLive('ready'), true);
+  // Den oprindelige fejl: alt der ikke var præcis "FINISHED" talte som i gang.
+  assert.equal(isLive('finished'), false);
+  assert.equal(isLive('FINISHED'), false);
+  // En aflyst kamp ville ellers blive vist som igangværende for altid.
+  assert.equal(isLive('CANCELLED'), false);
+  assert.equal(isLive('aborted'), false);
+  assert.equal(isLive(null), false);
+});
+
+test('readPosition læser position, og tager 0 som uplaceret', async () => {
+  const { readPosition } = await import('../src/faceit.js');
+
+  assert.equal(readPosition({ position: 412 }, 'me'), 412);
+  // MÅLT: en uplaceret spiller får position 0. Det er et svar, ikke et hul.
+  assert.equal(readPosition({ position: 0, items: [], start: 0, end: 0 }, 'me'), null);
+  assert.equal(readPosition({}, 'me'), null);
+});
+
+test('readPosition udleder placeringen af udsnittet når position mangler', async () => {
+  const { readPosition } = await import('../src/faceit.js');
+
+  // start + indeks + 1, så det virker uanset om position er 0-indekseret.
+  const payload = {
+    start: 400,
+    end: 403,
+    items: [{ player_id: 'a' }, { player_id: 'me' }, { player_id: 'b' }],
+  };
+  assert.equal(readPosition(payload, 'me'), 402);
+
+  // Spilleren er ikke i udsnittet: intet at udlede.
+  assert.equal(readPosition(payload, 'ukendt'), null);
 });

@@ -319,15 +319,18 @@ stedet udledes sæsonen af ligaens egen sæsonliste ved hvert opslag:
 Kun `ESEA_LEAGUE_ID` står i `.env`, så et skiftet liga-id ikke kræver en
 kodeændring.
 
-### Hvad der stadig skal verificeres
+### Målt: vejen er forkert
 
-Som resten af dataklienten er ESEA-stierne ubekræftede — faceit.com var
-blokeret under udviklingen. `npm run check` slår ligaen op, viser hvilken sæson
-der blev valgt, henter spillerens plads og navngiver de felter der manglede.
+Et rigtigt kald afviste antagelsen. `/leagues/{league_id}` svarer **404** på
+liga-id'et fra den offentlige ESEA-URL. Enten er det id ikke det Data API'et
+kender ligaen under, eller også dækker `/leagues` et andet begreb end ESEA.
 
-To ting er særligt usikre: om `/leagues/{id}` faktisk returnerer sæsonlisten i
-det felt `pickCurrentSeason` læser, og om ESEA's divisioner og placeringer
-ligger i player-season-svaret eller kun i et separat standings-endpoint. Et
-ældre forumindlæg peger på at detaljerede liga-standings kan mangle i v4 og
-kun findes i FACEIT's interne web-API; i så fald må `!esea` nøjes med division
-og hold, uden placering.
+`npm run probe-esea` prøver alternativerne af — liga- og championship-stier,
+sæson-id'et brugt som liga-id, leaderboards og spillerens plads — og viser hvad
+hvert enkelt svarer. Indtil en af dem svarer, er `!esea` ikke funktionsdygtig,
+og kommandoen bør ikke slås til i produktion.
+
+Svarer ingen af dem, findes ESEA ikke i Data API'et. Så er valget enten at
+droppe `!esea`, eller at hente fra FACEIT's interne web-API, som er
+udokumenteret og kan ændre sig uden varsel. Det er en beslutning, ikke en
+teknisk detalje, og den bør tages bevidst.

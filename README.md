@@ -36,13 +36,25 @@ rate limit-budget.
 
 ## Status
 
-Tidlig. Al logik der kan køre uden netværk er skrevet og dækket af tests
-(`npm test`), men **intet er endnu kørt mod det rigtige FACEIT API** — det var
-blokeret i miljøet koden blev skrevet i. Feltnavne og stier i `src/faceit.js`
-er derfor markeret som ubekræftede.
+Kørt mod det rigtige FACEIT API. Hvad der er målt og hvad der ikke er:
 
-`npm run check <nick>` findes netop for at lukke det hul: den kalder hvert
-endpoint botten bruger og siger hvilke felter der manglede.
+**Virker, bekræftet med et rigtigt kald:** spilleropslag (elo, level, SteamID,
+land), elo→level-tabellen, kamphistorik, kampdetaljer, al kampstatistik til
+`!lastgame`, og map-segmenterne til `!maps`.
+
+**Virker ikke:**
+
+- **ESEA.** `/leagues/{id}` svarer 404 på liga-id'et fra den offentlige URL.
+  `npm run probe-esea` prøver alternativerne af. Indtil der er fundet en vej,
+  er `!esea` ikke funktionsdygtig.
+- **FACEIT Rating og Round Swing** er ikke i Data API'et — se nedenfor.
+
+**Uafklaret:** om en placering i `!top` og `!rank` er 1-indekseret. Den eneste
+spiller der er testet med, står uden for ranglisten (`position: 0`), så det
+kræver et opslag på en level 10-spiller at afgøre.
+
+`npm run check <nick>` kalder hvert endpoint botten bruger og siger hvilke
+felter der manglede.
 
 ## Kommandoer
 
@@ -78,9 +90,8 @@ kan bakke op.
 ### Hvad `!lastgame` viser
 
 ```
-PETSEN │ Mirage 13-9 W │ 24-17-6 │ 1.41 K/D │ 1.09 K/R │ 94.2 ADR │ 2451 dmg
-       │ 48% HS │ 7 flashed │ 1.18 rating │ +4.2 swing │ +25 elo │ 312 util dmg
-       │ 1 ace │ 4 entry │ 2 clutch │ 5 MVP
+Petsen │ Inferno 6-13 L │ 6-16-1 │ 0.38 K/D │ 0.32 K/R │ 38.4 ADR │ 729 dmg
+       │ 50% HS │ 3 flashed │ -25 elo │ 11 util dmg │ 2 entry │ 1 clutch │ 1 MVP
 ```
 
 Felterne står i prioritetsrækkefølge og tilføjes så længe der er plads. Det er
@@ -92,17 +103,23 @@ vise et halvt. Med alt udfyldt er linjen omkring 190 tegn, så det sker sjælden
 Felter uden data udelades også. `0.0 ADR` ville læses som "spillede og lavede
 ingen skade", hvor sandheden er at FACEIT ikke oplyste det.
 
-**`rating` og `swing` er FACEIT's egne impact-tal.** FACEIT Rating måler hvordan
-dine handlinger ændrede holdets vinderchance, og Round Swing er metrikken den
-beregnes af. Begge kom til med FACEIT Season 8. De er **ikke bekræftet at
-findes i Data API'et** — de kan vise sig kun at være i web-UI'et. `npm run check`
-siger det direkte og printer alle nøgler i `player_stats`, så det rigtige navn
-kan læses af hvis vores gæt var forkert. Findes de ikke, udelades de to felter,
-og resten af linjen er uændret.
+**FACEIT Rating og Round Swing er ikke med**, og det er målt, ikke gættet. Et
+rigtigt kald mod `/matches/{id}/stats` returnerer 47 felter, og hverken rating
+eller swing er blandt dem under noget navn. De to tal findes kun i FACEIT's
+web-UI. Koden læser dem stadig, under flere navne, så de dukker op af sig selv
+hvis FACEIT føjer dem til API'et — men regn ikke med dem.
+
+Der kan heller ikke regnes en erstatning: en HLTV-agtig Rating 2.0 kræver KAST,
+og KAST er heller ikke i svaret. At vise et selvopfundet tal under navnet
+"rating" ville være værre end at lade feltet være.
 
 `K/R` og `ADR` udregnes fra kills, damage og rundeantal hvis FACEIT ikke sender
 dem direkte — begge kan udledes præcist, så der er ingen grund til et hul.
 `elo` er det eneste felt FACEIT ikke leverer: det er målt af botten selv.
+
+`entry` er **First Kills**, ikke `Entry Count`. Svaret har begge, og Count er
+antal forsøg — at vise det som entry kills ville overdrive hvad spilleren
+faktisk åbnede runder med.
 
 ### ESEA er en holdliga
 

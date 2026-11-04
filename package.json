@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node src/index.js",
     "check": "node src/check.js",
+    "probe-esea": "node src/probe-esea.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {

@@ -11,6 +11,8 @@ import {
   getMatchStats,
   getPlayerStats,
   getRanking,
+  isFinished,
+  isLive,
 } from './faceit.js';
 import { nextLevel, winsNeeded, levelFor } from './elo.js';
 import { getLeague, pickCurrentSeason, getPlayerSeason, readEseaStanding, hasEseaPlace } from './esea.js';
@@ -290,7 +292,11 @@ export function readMatchStats(payload, playerId) {
         aces: num('Penta Kills'),
         quads: num('Quadro Kills'),
         triples: num('Triple Kills'),
-        entryKills: num('Entry Count', 'First Kills'),
+        // MÅLT: svaret har både "Entry Count" (forsøg), "Entry Wins" (vundne)
+        // og "First Kills". Count er forsøg, ikke kills — at vise det som
+        // "5 entry" ville overdrive hvad spilleren faktisk åbnede med.
+        entryKills: num('First Kills', 'Entry Wins'),
+        entryAttempts: num('Entry Count'),
         clutches: add(num('1v1Wins'), num('1v2Wins')),
       };
     }
@@ -313,7 +319,7 @@ export async function commandLastGame({ channel, argument }) {
   const { player } = await resolveTarget(channel, argument);
 
   const history = await getHistory(player.playerId, { limit: 5 });
-  const finished = history.find((item) => (item.status ?? 'FINISHED') === 'FINISHED');
+  const finished = history.find((item) => isFinished(item.status));
 
   if (!finished) return `${player.nickname} har ingen færdige FACEIT-kampe`;
 
@@ -345,7 +351,7 @@ export async function commandLobby({ channel, argument }) {
   const { player } = await resolveTarget(channel, argument);
 
   const history = await getHistory(player.playerId, { limit: 3 });
-  const live = history.find((item) => item.status && item.status !== 'FINISHED');
+  const live = history.find((item) => isLive(item.status));
 
   if (!live) return formatLobby({ nickname: player.nickname, teams: [] });
 
