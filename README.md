@@ -42,9 +42,9 @@ land), elo→level-tabellen, kamphistorik, kampdetaljer, al kampstatistik til
 
 - **FACEIT Rating og Round Swing** er ikke i Data API'et — se nedenfor.
 
-**Uafklaret:** om en placering i `!top` og `!rank` er 1-indekseret. Den eneste
-spiller der er testet med, står uden for ranglisten (`position: 0`), så det
-kræver et opslag på en level 10-spiller at afgøre.
+**Uafklaret:** om `!top`'s landeplacering kan hentes. Regionen virker — en
+level 10-spiller kom tilbage som `EU #6024` — men samme opslag med
+`country=DK` gav intet.
 
 `npm run check <nick>` kalder hvert endpoint botten bruger og siger hvilke
 felter der manglede.
@@ -86,6 +86,12 @@ Der står `EU`, ikke "verden": **FACEIT's ranglister er altid regionale**, da
 regionen er en del af API-stien. Der findes ikke noget globalt tal at hente, og
 at skrive "verden" over en regionsplacering ville være en påstand API'et ikke
 kan bakke op.
+
+**Landeplaceringen virker måske ikke.** En spiller der står som `#6024` på
+EU-ranglisten fik ingen DK-placering, og en delmængde af EU kan ikke mangle
+ham — så `country`-filteret ser ikke ud til at virke på den rute. Derfor
+udelades en placering der mangler, frem for at blive kaldt "uden for listen".
+Kommer kun regionen med, er det den du ser.
 
 ### Hvad `!lastgame` viser
 

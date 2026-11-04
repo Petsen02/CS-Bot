@@ -134,7 +134,16 @@ function num(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-/** Rækkerne for ét championship, gennem dets leaderboard. */
+/**
+ * Rækkerne for ét championship, gennem dets leaderboard.
+ *
+ * MÅLT: `limit=100` afvises med 400. Endpointet har et loft, så der bladres i
+ * sider af 50 i stedet. En ESEA-division har sjældent over 50 hold, men
+ * Advanced-feltet kan være større, og et afkortet felt ville give forkerte
+ * placeringer for alle under afskæringen.
+ */
+export const STANDINGS_PAGE = 50;
+
 export function getStandings(championshipId) {
   return standingsCache.wrap(`standings:${championshipId}`, async () => {
     const defs = await request(`/leaderboards/championships/${encodeURIComponent(championshipId)}`,
@@ -143,10 +152,17 @@ export function getStandings(championshipId) {
     const boardId = defs?.items?.[0]?.leaderboard_id;
     if (!boardId) return [];
 
-    const board = await request(`/leaderboards/${encodeURIComponent(boardId)}`,
-      { params: { limit: 100 } });
+    const rows = [];
+    for (let offset = 0; offset < 400; offset += STANDINGS_PAGE) {
+      const page = await request(`/leaderboards/${encodeURIComponent(boardId)}`,
+        { params: { offset, limit: STANDINGS_PAGE } });
 
-    return readStandings(board?.items);
+      const items = page?.items ?? [];
+      rows.push(...items);
+      if (items.length < STANDINGS_PAGE) break;
+    }
+
+    return readStandings(rows);
   });
 }
 

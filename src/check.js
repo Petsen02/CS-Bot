@@ -231,7 +231,9 @@ async function run() {
     () => getRanking(defaultRegion, player.playerId, defaultCountry));
   if (national) {
     report(national.position === null ? WARN : PASS, `${defaultCountry}-placering`,
-      national.position === null ? 'ingen position i svaret' : `#${national.position}`);
+      national.position === null
+        ? 'ingen position — country-filteret ser ikke ud til at virke på denne rute'
+        : `#${national.position}`);
   }
 
   console.log('\n--- ESEA League ---');

@@ -204,17 +204,25 @@ export function formatLobby({ nickname, map, teams, status }) {
 export function formatTop({ nickname, elo, level, country, countryPosition, region, regionPosition, at }) {
   const parts = [formatPlayerElo({ nickname, elo, level }, config.rankStyle)];
 
-  parts.push(
-    Number.isFinite(countryPosition) && countryPosition > 0
-      ? `${country} #${countryPosition}`
-      : `${country}: uden for listen`,
-  );
+  const places = [];
+  if (Number.isFinite(countryPosition) && countryPosition > 0) {
+    places.push(`${country} #${countryPosition}`);
+  }
+  if (Number.isFinite(regionPosition) && regionPosition > 0) {
+    places.push(`${region} #${regionPosition}`);
+  }
 
-  parts.push(
-    Number.isFinite(regionPosition) && regionPosition > 0
-      ? `${region} #${regionPosition}`
-      : `${region}: uden for listen`,
-  );
+  // Et manglende tal udelades frem for at blive kaldt "uden for listen".
+  //
+  // MÅLT: en spiller på EU-ranglisten som #6024 fik ingen landeplacering, og
+  // en delmængde af EU kan ikke mangle ham. Enten dækker country-filteret
+  // ikke denne rute, eller også er landelisten kortere. At skrive "uden for
+  // listen" ville i begge tilfælde være en påstand vi ikke kan bakke op.
+  if (places.length === 0) {
+    parts.push('ingen placering på ranglisten');
+  } else {
+    parts.push(...places);
+  }
 
   if (at) {
     parts.push(`opdateret ${formatDate(config.timezone, at)} ${formatClock(config.timezone, at)}`);

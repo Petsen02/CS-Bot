@@ -199,7 +199,26 @@ test('formatTop viser land og region, og kalder aldrig regionen "verden"', () =>
   assert.ok(!/verden/i.test(message), message);
 });
 
-test('formatTop siger "uden for listen" frem for at vise ingenting', () => {
+test('formatTop udelader en placering der mangler frem for at påstå noget', () => {
+  // MÅLT: en spiller som #6024 på EU-ranglisten fik ingen landeplacering, og
+  // en delmængde af EU kan ikke mangle ham. "Uden for listen" ville være en
+  // påstand vi ikke kan bakke op.
+  const message = formatTop({
+    nickname: 'vigg0',
+    elo: 3097,
+    level: 10,
+    country: 'DK',
+    countryPosition: null,
+    region: 'EU',
+    regionPosition: 6024,
+    at: null,
+  });
+
+  assert.ok(message.includes('EU #6024'), message);
+  assert.ok(!message.includes('DK'), `landet måtte ikke nævnes: ${message}`);
+});
+
+test('formatTop siger det ligeud når ingen placering kendes', () => {
   const message = formatTop({
     nickname: 'RASMUS',
     elo: 1400,
@@ -210,7 +229,7 @@ test('formatTop siger "uden for listen" frem for at vise ingenting', () => {
     regionPosition: null,
     at: null,
   });
-  assert.ok(message.includes('DK: uden for listen'), message);
+  assert.ok(message.includes('ingen placering'), message);
 });
 
 test('formatMaps udelader "værst" når der kun er ét map', () => {
