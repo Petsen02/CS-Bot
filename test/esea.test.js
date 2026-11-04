@@ -212,3 +212,29 @@ test('parseDivisionName kræver stadig en division', async () => {
   assert.equal(parseDivisionName('S58 OCE Finals Central - Finals'), null);
   assert.equal(parseDivisionName('Europe 5v5 Queue'), null);
 });
+
+test('readStandings bruger sejre som skillelinje ved lige point', async () => {
+  // Med 76 hold i en division ligger mange på samme pointtal. Uden en
+  // skillelinje ville rækkefølgen mellem dem skifte fra opslag til opslag.
+  const standings = readStandings([
+    { player: { user_id: 'c', nickname: 'Cee' }, won: 4, lost: 5, points: 15 },
+    { player: { user_id: 'a', nickname: 'Aaa' }, won: 5, lost: 4, points: 15 },
+    { player: { user_id: 'b', nickname: 'Bee' }, won: 5, lost: 2, points: 15 },
+  ]);
+
+  // Flest sejre først; ved lige mange, bedste sejre-minus-nederlag.
+  assert.deepEqual(standings.map((s) => s.teamName), ['Bee', 'Aaa', 'Cee']);
+});
+
+test('readStandings giver samme rækkefølge hver gang', async () => {
+  // Helt ens hold skal stadig sorteres forudsigeligt, ellers hopper
+  // placeringen mellem to opslag af den samme stilling.
+  const rows = [
+    { player: { user_id: '2', nickname: 'Zulu' }, won: 3, lost: 3, points: 9 },
+    { player: { user_id: '1', nickname: 'Alfa' }, won: 3, lost: 3, points: 9 },
+  ];
+
+  assert.deepEqual(readStandings(rows).map((s) => s.rank), [1, 2]);
+  assert.deepEqual(readStandings([...rows].reverse()).map((s) => s.teamName), ['Alfa', 'Zulu']);
+  assert.deepEqual(readStandings(rows).map((s) => s.teamName), ['Alfa', 'Zulu']);
+});

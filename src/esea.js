@@ -219,8 +219,33 @@ export function readStandings(rows) {
         streak: num(row?.current_streak),
       };
     })
-    .sort((a, b) => (b.points ?? -1) - (a.points ?? -1))
+    .sort(compareStandings)
     .map((entry, index) => ({ ...entry, rank: index + 1 }));
+}
+
+/**
+ * Rækkefølgen i stillingen: point, så sejre, så sejre minus nederlag.
+ *
+ * API'ets `position` er 0 på hver eneste række, også på føreren, så
+ * placeringen må udledes. Point alene er for groft — med 76 hold i en division
+ * ligger mange på samme pointtal, og så ville rækkefølgen mellem dem være
+ * tilfældig og skifte fra opslag til opslag.
+ *
+ * ESEA's egen skillelinje kender vi ikke; rundeforskel og indbyrdes opgør er
+ * ikke i svaret. Placeringen kan derfor afvige fra ESEA's side for hold med
+ * lige mange point. Navnet til sidst gør i det mindste rækkefølgen stabil, så
+ * det samme opslag altid giver det samme tal.
+ */
+export function compareStandings(a, b) {
+  const by = (x, y) => (y ?? -Infinity) - (x ?? -Infinity);
+
+  return by(a.points, b.points)
+    || by(a.won, b.won)
+    || by(
+      Number.isFinite(a.won) && Number.isFinite(a.lost) ? a.won - a.lost : null,
+      Number.isFinite(b.won) && Number.isFinite(b.lost) ? b.won - b.lost : null,
+    )
+    || String(a.teamName ?? '').localeCompare(String(b.teamName ?? ''));
 }
 
 function num(value) {

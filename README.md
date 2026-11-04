@@ -187,8 +187,14 @@ FACEIT's interne web-API blev prøvet og forkastet: alle seks kandidatruter
 svarede 404, og den officielle vej virker.
 
 **Placeringen er udledt, ikke læst.** API'ets `position` er 0 på hver eneste
-række, også på føreren med flest point, så stillingen sorteres efter point og
-placeringen tælles derfra.
+række, også på føreren med flest point, så stillingen sorteres selv og
+placeringen tælles derfra: point, så sejre, så sejre minus nederlag, og
+holdnavn til sidst for en stabil rækkefølge.
+
+Derfor kan tallet **afvige fra ESEA's egen side** for hold med lige mange
+point. Deres skillelinje er formentlig rundeforskel eller indbyrdes opgør, og
+ingen af delene er i svaret. Med 76 hold i en division ligger mange på samme
+pointtal, så forskellen er ikke teoretisk.
 
 Sæsonerne i API'et går til S55, og de er alle afsluttede. Season 59 var åben
 for tilmelding på FACEIT's hjemmeside, men findes ikke i API'et endnu, så
