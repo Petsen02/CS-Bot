@@ -32,19 +32,27 @@ rate limit-budget.
 
 ## Status
 
-Kørt mod det rigtige FACEIT API. Hvad der er målt og hvad der ikke er:
+Verificeret mod det rigtige FACEIT API med to spillere, level 7 og level 10.
+Alt botten er afhængig af kom tilbage som forventet.
 
-**Virker, bekræftet med et rigtigt kald:** spilleropslag (elo, level, SteamID,
-land), elo→level-tabellen, kamphistorik, kampdetaljer, al kampstatistik til
-`!lastgame`, og map-segmenterne til `!maps`.
+**Bekræftet:** spilleropslag (elo, level, SteamID, land), elo→level-tabellen,
+kamphistorik, kampdetaljer, hele statistiklinjen til `!lastgame`,
+map-segmenterne til `!maps`, regionsplaceringen til `!top` og `!rank`, og hele
+ESEA-kæden — 59 divisioner, 179 hold i en stilling, placeringer udledt rigtigt.
 
 **Virker ikke:**
 
-- **FACEIT Rating og Round Swing** er ikke i Data API'et — se nedenfor.
+- **FACEIT Rating og Round Swing** er ikke i Data API'et. Set på to spillere og
+  tre kampe: 47 felter, ingen af dem. Se afsnittet om `!lastgame`.
+- **Landeplaceringen i `!top`.** Regionen virker, men `country`-filteret giver
+  intet selv for en spiller der står som `EU #6025`.
 
-**Uafklaret:** om `!top`'s landeplacering kan hentes. Regionen virker — en
-level 10-spiller kom tilbage som `EU #6024` — men samme opslag med
-`country=DK` gav intet.
+**Uprøvet:** `!esea` er aldrig kørt mod en spiller der faktisk var på et
+ESEA-hold — ingen af testspillerne spillede S55. Kæden er bekræftet i begge
+ender, men selve matchet mellem et holds id og en stilling mangler et rigtigt
+tilfælde.
+
+`!session` kan først verificeres når botten har kørt en dag og målt elo selv.
 
 `npm run check <nick>` kalder hvert endpoint botten bruger og siger hvilke
 felter der manglede.
