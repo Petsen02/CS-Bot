@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parsePlayerRef, normalizeCountry, normalizeRegion, REGIONS } from '../src/config.js';
+import {
+  parsePlayerRef,
+  normalizeCountry,
+  normalizeRegion,
+  sanitizeArgument,
+  REGIONS,
+} from '../src/config.js';
 
 test('parsePlayerRef genkender et SteamID64', () => {
   assert.deepEqual(parsePlayerRef('76561198000000000'), {
@@ -66,9 +72,7 @@ test('normalizeRegion versaliserer, og de ventede regioner findes', () => {
  * argumentet blev afvist som ugyldigt navn — eller, når tegnet sad klistret på
  * navnet, sendt med ind i opslaget og gav 404.
  */
-test('sanitizeArgument fjerner Twitch-klienters usynlige tegn', async () => {
-  const { sanitizeArgument } = await import('../src/config.js');
-
+test('sanitizeArgument fjerner Twitch-klienters usynlige tegn', () => {
   // U+E0000 er det tag-tegn Twitch bruger til dublet-omgåelse.
   assert.equal(sanitizeArgument('Petsen \u{E0000}'), 'Petsen');
   assert.equal(sanitizeArgument('Petsen\u{E0000}'), 'Petsen');
