@@ -108,44 +108,73 @@ async function run() {
 
   console.log('--- ESEA-championships ---');
   const champs = await allEseaChampionships();
-  console.log(`         ${champs.length} championships under ESEA`);
+  console.log(`         ${champs.length} championships under ESEA\n`);
 
-  const seasons = [...new Set(champs.map((c) => c.season).filter(Number.isFinite))]
+  // Hvilke sæsoner, hvor mange, og hvilke statusser. Uden det her er et valg
+  // af "nyeste sæson" bare et nyt gæt: S58 gav én aflyst OCE-finale.
+  const bySeason = new Map();
+  for (const c of champs) {
+    const key = c.season ?? '(uden)';
+    if (!bySeason.has(key)) bySeason.set(key, []);
+    bySeason.get(key).push(c);
+  }
+
+  const seasonKeys = [...bySeason.keys()]
+    .filter((k) => Number.isFinite(k))
     .sort((a, b) => b - a);
-  console.log(`         sæsoner: ${seasons.join(', ') || '(ingen i navnene)'}`);
 
-  const newest = seasons[0] ?? null;
-  const current = champs.filter((c) => c.season === newest);
+  console.log('         sæson  antal  statusser');
+  for (const key of seasonKeys) {
+    const list = bySeason.get(key);
+    const statuses = [...new Set(list.map((c) => c.status))].join('/');
+    console.log(`         ${String(key).padStart(5)}  ${String(list.length).padStart(5)}  ${statuses}`);
+  }
+  const noSeason = bySeason.get('(uden)') ?? [];
+  if (noSeason.length) console.log(`         uden sæson i navnet: ${noSeason.length}`);
 
-  console.log(`\n         sæson ${newest} — ${current.length} divisioner:`);
-  for (const c of current) {
+  // De rigtige ligadivisioner, i modsætning til finaler og kvalifikationer.
+  const DIVISIONS = /\b(entry|intermediate|main|advanced|open)\b/i;
+  const divisions = champs.filter((c) => DIVISIONS.test(c.name));
+
+  console.log(`\n         ${divisions.length} med et divisionsnavn i titlen`);
+  console.log('         nyeste 25:');
+  for (const c of divisions.sort((a, b) => (b.season ?? 0) - (a.season ?? 0)).slice(0, 25)) {
     console.log(`           ${c.name}`);
     console.log(`             id=${c.id} region=${c.region} status=${c.status} grupper=${c.groups}`);
   }
 
-  // Foretræk en der stadig kører — en afsluttet sæson har ingen levende stilling.
-  const target = current.find((c) => c.status !== 'finished') ?? current[0];
-  if (!target) {
-    console.log('\nIngen championships at følge.');
-    return;
+  // Navne uden division: finaler, playoffs, hvad ellers? Mønstrene afgør
+  // hvordan !esea skal vælge.
+  const others = champs.filter((c) => !DIVISIONS.test(c.name));
+  console.log(`\n         ${others.length} uden divisionsnavn — nyeste 15:`);
+  for (const c of others.sort((a, b) => (b.season ?? 0) - (a.season ?? 0)).slice(0, 15)) {
+    console.log(`           [${String(c.status).padEnd(9)}] ${c.name}`);
   }
 
-  console.log(`\n--- følger "${target.name}" ---`);
+  // Find en der FAKTISK har en stilling. Aflyste og tomme siger intet om
+  // hvordan et rigtigt leaderboard ser ud.
+  console.log('\n--- leder efter en division med en rigtig stilling ---');
+  const candidates = divisions
+    .filter((c) => c.status !== 'cancelled')
+    .sort((a, b) => (b.season ?? 0) - (a.season ?? 0))
+    .slice(0, 8);
 
-  const defs = await show('leaderboards/championships/{id}',
-    `/leaderboards/championships/${target.id}`, { limit: 10 });
+  for (const c of candidates) {
+    const { body } = await call(`/leaderboards/championships/${c.id}`, { limit: 5 });
+    const defs = body?.items ?? [];
+    if (defs.length === 0) {
+      console.log(`         tom: ${c.name}`);
+      continue;
+    }
 
-  for (const def of defs?.items ?? []) {
+    console.log(`\n   >>> "${c.name}" har ${defs.length} leaderboard(s)`);
+    const def = defs[0];
     console.log(`         ${def.leaderboard_id}`);
     console.log(`           navn=${def.leaderboard_name} gruppe=${def.group} `
       + `type=${def.ranking_type} status=${def.status}`);
-  }
 
-  // Her ligger selve stillingen — det !esea skal vise.
-  const first = defs?.items?.[0];
-  if (first?.leaderboard_id) {
-    const board = await show('leaderboards/{leaderboard_id}',
-      `/leaderboards/${first.leaderboard_id}`, { limit: 5 });
+    const board = await show('  leaderboards/{leaderboard_id}',
+      `/leaderboards/${def.leaderboard_id}`, { limit: 5 });
 
     const rows = board?.items ?? [];
     if (rows[0]) {
@@ -158,23 +187,17 @@ async function run() {
       console.log(`           #${row.position ?? '?'} ${name}  `
         + `W${row.won ?? '?'} L${row.lost ?? '?'} pts=${row.points ?? '?'}`);
     }
-  }
 
-  // Holdene i divisionen: her skal en spillers hold kunne findes.
-  const subs = await show('championships/{id}/subscriptions',
-    `/championships/${target.id}/subscriptions`, { limit: 3 });
-
-  const sub = subs?.items?.[0];
-  if (sub) {
-    console.log(`         subscription-felter: ${Object.keys(sub).join(', ')}`);
-    const team = sub.team ?? sub.roster ?? null;
-    if (team) {
-      console.log(`         holdfelter: ${Object.keys(team).join(', ')}`);
-      const roster = team.roster ?? team.members ?? null;
-      if (Array.isArray(roster) && roster[0]) {
-        console.log(`         spillerfelter: ${Object.keys(roster[0]).join(', ')}`);
-      }
+    const subs = await show('  championships/{id}/subscriptions',
+      `/championships/${c.id}/subscriptions`, { limit: 3 });
+    const sub = subs?.items?.[0];
+    if (sub) {
+      console.log(`         subscription-felter: ${Object.keys(sub).join(', ')}`);
+      const team = sub.team ?? sub.roster ?? null;
+      if (team) console.log(`         holdfelter: ${Object.keys(team).join(', ')}`);
     }
+
+    break; // Én fuld kæde er nok til at bygge !esea på.
   }
 
   if (playerId) {
