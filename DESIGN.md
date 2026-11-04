@@ -80,11 +80,11 @@ Tallene i parentes er linjer i LoL-botten.
 | — | `!maps [nick]` | Ny: bedste og dårligste map efter winrate. FACEIT giver segmenter pr. map gratis |
 | — | `!esea [nick]` | Ny: `PETSEN │ ESEA Advanced Group C │ Nordic Noobs 7-3 │ #4`. Holdliga, ikke personlig stige |
 
-Admin-kommandoerne beholder `!old`-præfikset, så muskelhukommelsen virker på
-tværs af de to bots:
+Admin-kommandoerne har præfikset `!csbot`, så de ikke kolliderer med
+LoL-bottens `!old`-sæt når begge bots er i samme chat:
 
-`!oldcommands` · `!oldplayerlist` · `!oldaddplayer` · `!oldremoveplayer` ·
-`!oldaddmain` · `!oldremovemain` · `!oldregion`
+`!csbotcommands` · `!csbotplayerlist` · `!csbotaddplayer` · `!csbotremoveplayer` ·
+`!csbotaddmain` · `!csbotremovemain` · `!csbotregion`
 
 ## 4. Datakilde: FACEIT Data API v4
 
@@ -167,13 +167,13 @@ min, da en FACEIT-kamp kan vare længere end en LoL-kamp.
 FACEIT-nicks kan ændres; `player_id` er stabil. Samme mønster som LoL-bottens
 `riotId` + `puuid`:
 
-- Mods skriver nick i `!oldaddplayer`.
+- Mods skriver nick i `!csbotaddplayer`.
 - Botten slår op, gemmer `{ nickname, player_id, steam_id_64 }`.
 - Alle senere kald bruger `player_id`.
 - Vises nicket fra den gemte post, kan det blive forældet. Tracker-pollen
   opdaterer nicket når den alligevel har svaret i hånden.
 
-`!oldaddplayer` bør også tage et Steam-profillink eller SteamID64, da det er
+`!csbotaddplayer` bør også tage et Steam-profillink eller SteamID64, da det er
 det streamere oftest har ved hånden. `game_player_id`-opslaget gør det gratis.
 
 ## 8. 7TV-ikoner
@@ -234,8 +234,10 @@ kø-baseret rate limiting, adaptiv polling, kommandotabel med rettighedsniveauer
 De er skrevet om til CS frem for kopieret.
 
 Hvad der *er* bevaret ordret, er kommando-vokabularet. `!rank`, `!ranks`,
-`!session`, `!nextrank`, `!lastgame`, `!lobby` og hele `!old`-sættet betyder det
-samme i begge bots, så muskelhukommelsen virker på tværs. `!chal` er den ene
+`!session`, `!nextrank`, `!lastgame` og `!lobby` betyder det samme i begge
+bots, så muskelhukommelsen virker på tværs. Admin-kommandoerne er undtagelsen:
+LoL-botten bruger `!old`, CS-botten `!csbot`, så de to kan stå i samme chat
+uden at tage hinandens kommandoer. `!chal` er den ene
 undtagelse, erstattet af `!top`, fordi FACEIT har ranglister og ikke cutoffs.
 
 Hvis de to bots senere skal dele kode, er `@petsen02/twitch-bot-core` en
@@ -247,7 +249,7 @@ datalag.
 | Fase | Indhold | Kan testes ved |
 |---|---|---|
 | 0 | Verificér FACEIT-API'et mod dokumentationen og en rigtig nøgle. Ret §4 og §9 | `npm run check` — smoke test uden Twitch, som LoL-bottens `check.js` |
-| 1 | Infrastruktur: kopiér de fire generiske filer, tilpas `config`, `store`, `channels`, `index`. Admin-kommandoer | Botten joiner, `!oldaddplayer` virker |
+| 1 | Infrastruktur: kopiér de fire generiske filer, tilpas `config`, `store`, `channels`, `index`. Admin-kommandoer | Botten joiner, `!csbotaddplayer` virker |
 | 2 | `faceit.js` + `elo.js` + `!rank`, `!ranks`, `!nextrank` | Rigtige tal i chatten |
 | 3 | `tracker.js` + `!gains` / `!session` | Elo-delta efter en session |
 | 4 | `!lastgame`, `!maps`, `!lobby` | — |

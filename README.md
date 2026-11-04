@@ -175,19 +175,20 @@ for tilmelding på FACEIT's hjemmeside, men findes ikke i API'et endnu, så
 
 ## Admin-kommandoer
 
-Alt der styrer kanalens opsætning har præfikset `!old`, og er lukket for
-almindelige seere.
+Alt der styrer kanalens opsætning har præfikset `!csbot`, og er lukket for
+almindelige seere. Præfikset holder dem adskilt fra seernes kommandoer og fra
+andre bots i samme chat; det kan skiftes med `ADMIN_PREFIX` i `.env`.
 
 | Kommando | Hvem | Virkning |
 |---|---|---|
-| `!oldcommands` | alle | Linker hertil |
-| `!oldplayerlist` | mod | Viser kanalens region, land og spillerliste |
-| `!oldaddplayer <nick>` | mod | Tilføjer, efter at kontoen er slået op hos FACEIT |
-| `!oldremoveplayer <nick>` | mod | Fjerner fra listen |
-| `!oldaddmain <nick>` | mod | Sætter main, og tilføjer til listen hvis den mangler |
-| `!oldremovemain <nick>` | mod | Fjerner main |
-| `!oldregion EU` | mod | Sætter kanalens region — `EU`, `NA`, `SA`, `AS`, `OCE` |
-| `!oldcountry dk` | mod | Sætter landet `!top` måler mod |
+| `!csbotcommands` | alle | Linker hertil |
+| `!csbotplayerlist` | mod | Viser kanalens region, land og spillerliste |
+| `!csbotaddplayer <nick>` | mod | Tilføjer, efter at kontoen er slået op hos FACEIT |
+| `!csbotremoveplayer <nick>` | mod | Fjerner fra listen |
+| `!csbotaddmain <nick>` | mod | Sætter main, og tilføjer til listen hvis den mangler |
+| `!csbotremovemain <nick>` | mod | Fjerner main |
+| `!csbotregion EU` | mod | Sætter kanalens region — `EU`, `NA`, `SA`, `AS`, `OCE` |
+| `!csbotcountry dk` | mod | Sætter landet `!top` måler mod |
 
 ## Level og elo
 

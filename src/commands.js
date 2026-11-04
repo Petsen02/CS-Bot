@@ -62,7 +62,7 @@ async function resolveTarget(channelName, argument) {
   if (!stored) {
     throw new FaceitError(
       'bad_input',
-      'Der er ingen spillere på listen endnu — en mod kan tilføje med !oldaddplayer',
+      `Der er ingen spillere på listen endnu — en mod kan tilføje med !${config.adminPrefix}addplayer`,
     );
   }
 
@@ -510,7 +510,7 @@ export function commandPlayerList({ channel }) {
 
 export async function commandAddPlayer({ channel, argument }) {
   const ref = parsePlayerRef(argument);
-  if (!ref) return 'Brug: !oldaddplayer <FACEIT-nick eller SteamID64>';
+  if (!ref) return `Brug: !${config.adminPrefix}addplayer <FACEIT-nick eller SteamID64>`;
 
   // Slå op først: en tom eller forkert post på listen ville fejle ved hver
   // kommando bagefter, uden at det var tydeligt hvorfor.
@@ -524,7 +524,7 @@ export async function commandAddPlayer({ channel, argument }) {
 
 export function commandRemovePlayer({ channel, argument }) {
   const ref = parsePlayerRef(argument);
-  if (!ref || ref.kind !== 'nickname') return 'Brug: !oldremoveplayer <FACEIT-nick>';
+  if (!ref || ref.kind !== 'nickname') return `Brug: !${config.adminPrefix}removeplayer <FACEIT-nick>`;
 
   const result = channels.removePlayer(channel, ref.value);
   return result === 'missing'
@@ -534,7 +534,7 @@ export function commandRemovePlayer({ channel, argument }) {
 
 export async function commandAddMain({ channel, argument }) {
   const ref = parsePlayerRef(argument);
-  if (!ref) return 'Brug: !oldaddmain <FACEIT-nick eller SteamID64>';
+  if (!ref) return `Brug: !${config.adminPrefix}addmain <FACEIT-nick eller SteamID64>`;
 
   const player = await resolvePlayer(ref);
 
@@ -548,7 +548,7 @@ export async function commandAddMain({ channel, argument }) {
 
 export function commandRemoveMain({ channel, argument }) {
   const ref = parsePlayerRef(argument);
-  if (!ref || ref.kind !== 'nickname') return 'Brug: !oldremovemain <FACEIT-nick>';
+  if (!ref || ref.kind !== 'nickname') return `Brug: !${config.adminPrefix}removemain <FACEIT-nick>`;
 
   const result = channels.clearMain(channel, ref.value);
   return result === 'missing'

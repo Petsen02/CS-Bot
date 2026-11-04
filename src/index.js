@@ -37,6 +37,12 @@ import {
 } from './commands.js';
 
 /**
+ * Præfikset på admin-kommandoerne, fra .env. Bygget ind i tabellen frem for
+ * skrevet ind otte steder, så det kan skiftes uden en kodeændring.
+ */
+const ADMIN = config.adminPrefix;
+
+/**
  * Kommandotabel. `level` er hvem der må køre den:
  *   everyone | mod (mods og broadcaster) | broadcaster
  *
@@ -58,14 +64,14 @@ const handlers = new Map([
   // ESEA er en holdliga, så svaret er holdets division og placering — derfor
   // sin egen kommando frem for en linje i !rank.
   ['esea', { level: 'everyone', run: commandEsea }],
-  ['oldcommands', { level: 'everyone', run: commandCommands }],
-  ['oldplayerlist', { level: 'mod', run: commandPlayerList }],
-  ['oldaddplayer', { level: 'mod', run: commandAddPlayer }],
-  ['oldremoveplayer', { level: 'mod', run: commandRemovePlayer }],
-  ['oldaddmain', { level: 'mod', run: commandAddMain }],
-  ['oldremovemain', { level: 'mod', run: commandRemoveMain }],
-  ['oldregion', { level: 'mod', run: commandRegion }],
-  ['oldcountry', { level: 'mod', run: commandCountry }],
+  [`${ADMIN}commands`, { level: 'everyone', run: commandCommands }],
+  [`${ADMIN}playerlist`, { level: 'mod', run: commandPlayerList }],
+  [`${ADMIN}addplayer`, { level: 'mod', run: commandAddPlayer }],
+  [`${ADMIN}removeplayer`, { level: 'mod', run: commandRemovePlayer }],
+  [`${ADMIN}addmain`, { level: 'mod', run: commandAddMain }],
+  [`${ADMIN}removemain`, { level: 'mod', run: commandRemoveMain }],
+  [`${ADMIN}region`, { level: 'mod', run: commandRegion }],
+  [`${ADMIN}country`, { level: 'mod', run: commandCountry }],
 ]);
 
 /**
@@ -162,7 +168,7 @@ async function bootstrap() {
   }
 
   // En main der ikke er på listen bliver aldrig pollet, så !session ville
-  // mangle elo for den. Startlisten skal tilføje den, præcis som !oldaddmain.
+  // mangle elo for den. Startlisten skal tilføje den, som addmain gør.
   const main = seedMain();
   if (main) {
     try {

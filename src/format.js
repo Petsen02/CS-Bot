@@ -279,7 +279,7 @@ export function formatEsea({ nickname, season, region, standing }) {
   return parts.join(SEP);
 }
 
-/** Hjælper til !oldplayerlist og lignende: en læsbar liste af nicks. */
+/** Hjælper til playerlist og lignende: en læsbar liste af nicks. */
 export function formatNicknames(players) {
   if (players.length === 0) return 'listen er tom';
   return players.map((p) => p.nickname).join(', ');

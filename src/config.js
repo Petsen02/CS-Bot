@@ -190,6 +190,12 @@ export const config = {
   defaultRegion,
   defaultCountry,
   rankStyle: parseRankStyle(process.env.RANK_STYLE),
+  /**
+   * Præfikset på de kommandoer der styrer kanalens opsætning: !csbotaddplayer
+   * og resten. Det holder dem adskilt fra seernes kommandoer og fra andre
+   * bots i samme chat — LoL-botten i nabokanalen bruger !old til det samme.
+   */
+  adminPrefix: (process.env.ADMIN_PREFIX || 'csbot').trim().toLowerCase(),
   // Navnet på kanalens 7TV-emotes: LVL1 … LVL10. Indstilleligt, fordi det er
   // en egenskab ved emote-sættet og ikke ved botten.
   rankEmotePrefix: (process.env.RANK_EMOTE_PREFIX || 'LVL').trim(),
