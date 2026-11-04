@@ -202,11 +202,13 @@ export function seedMain() {
  * smoke testen kan køre før der findes Twitch-credentials.
  */
 export function getTwitchConfig() {
-  const token = required('TWITCH_OAUTH_TOKEN');
-
   return {
     username: required('TWITCH_BOT_USERNAME').toLowerCase(),
-    // tmi.js vil have "oauth:"-præfikset; tag imod med eller uden.
-    password: token.startsWith('oauth:') ? token : `oauth:${token}`,
+    accessToken: required('TWITCH_OAUTH_TOKEN'),
+    // Alle tre er valgfrie. Uden refresh token fornyes der ikke; uden client
+    // secret fornyes der gennem token-generatoren i stedet for Twitch selv.
+    refreshToken: process.env.TWITCH_REFRESH_TOKEN || null,
+    clientId: process.env.TWITCH_CLIENT_ID || null,
+    clientSecret: process.env.TWITCH_CLIENT_SECRET || null,
   };
 }

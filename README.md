@@ -250,6 +250,33 @@ Alle indstillinger er dokumenteret i `.env.example`. Vær opmærksom på
 `FACEIT_LIMIT_PER_SECOND` og `FACEIT_LIMIT_PER_TEN_MINUTES`: de er sat
 konservativt, fordi FACEIT's faktiske budget endnu ikke er bekræftet.
 
+## Token-fornyelse
+
+Et Twitch-token udløber efter omkring 60 dage. Uden fornyelse stopper botten en
+tilfældig dag med `Login authentication failed` — og det sker mens ingen kigger.
+
+Sæt `TWITCH_REFRESH_TOKEN` i `.env` (den fås sammen med access token fra
+token-generatoren), så fornyer botten selv: ved opstart, og hver sjette time
+mens den kører. Fornyede tokens gemmes i `data/twitch-tokens.json`, så de
+overlever en genstart.
+
+Sætter du også `TWITCH_CLIENT_ID` og `TWITCH_CLIENT_SECRET` fra en app du selv
+opretter på [dev.twitch.tv](https://dev.twitch.tv/console/apps), fornyes der
+hos Twitch direkte. Uden et secret går fornyelsen gennem
+twitchtokengenerator.com, hvilket virker, men binder botten til at den side
+bliver ved med at findes.
+
+Skriver du et nyt token i `.env` i hånden, vinder det over det gemte —
+sammenligningen sker på refresh-tokenet, så en manuel udskiftning ikke bliver
+overskrevet af en forældet kopi.
+
+To detaljer der er lette at tage fejl af, og som begge er dækket af tests:
+
+- **Twitch udsteder en ny refresh token ved hver fornyelse**, og den gamle
+  holder op med at virke. Tabes den, er kæden brudt for altid.
+- **Et netværksudfald er ikke et dødt token.** Kan Twitch ikke nås, fornyes der
+  ikke — ellers ville en forbigående fejl brænde refresh-tokenet af.
+
 ## Drift
 
 `deploy/cs-bot.service` er en systemd-unit. Den genstarter botten ved nedbrud

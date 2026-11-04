@@ -2,6 +2,7 @@ import tmi from 'tmi.js';
 import { installCrashHandlers, logPaths, logger } from './logger.js';
 import { config, getTwitchConfig, bootstrapChannels, seedPlayers, seedMain } from './config.js';
 import { channels, normalizeChannel } from './channels.js';
+import { TwitchAuth } from './twitchAuth.js';
 import { FaceitError, resolvePlayer } from './faceit.js';
 import { store } from './store.js';
 import { startTracker } from './tracker.js';
@@ -57,6 +58,35 @@ const handlers = new Map([
   ['oldregion', { level: 'mod', run: commandRegion }],
   ['oldcountry', { level: 'mod', run: commandCountry }],
 ]);
+
+/**
+ * Holder tokenet gyldigt mens botten kører.
+ *
+ * Et Twitch-token holder omkring to måneder, så der tjekkes sjældent — men
+ * det SKAL tjekkes, for ellers falder botten ud af chatten en tilfældig dag.
+ * Fornyes tokenet, skal tmi.js have det nye: klienten genbruger sin gamle
+ * adgangskode ved hver genforbindelse, så den skal skrives om og forbindelsen
+ * slås i stykker, før det nye bliver brugt.
+ */
+export function startTokenRefresh(client, auth, intervalMs = 6 * 60 * 60_000) {
+  const tick = async () => {
+    try {
+      const result = await auth.ensureFresh();
+      if (result !== 'refreshed') return;
+
+      client.opts.identity.password = auth.password;
+      logger.info('genforbinder med det fornyede token');
+      await client.disconnect().catch(() => {});
+      await client.connect();
+    } catch (error) {
+      logger.error(`token-fornyelse fejlede: ${error.message}`);
+    }
+  };
+
+  const timer = setInterval(tick, intervalMs);
+  timer.unref?.();
+  return timer;
+}
 
 /** Gør en API-fejl til noget en seer kan handle på. */
 export function explain(error) {
@@ -147,6 +177,17 @@ async function main() {
   logger.info(`crash reports: ${logPaths.crashes}`);
 
   const twitch = getTwitchConfig();
+
+  // Tokenet fornyes FØR der forbindes. Starter botten efter at have været
+  // nede i to måneder, er tokenet udløbet, og uden dette ville den bare
+  // fejle med "Login authentication failed" og give op.
+  const auth = new TwitchAuth(twitch);
+  if (auth.canRefresh) {
+    await auth.ensureFresh();
+  } else {
+    logger.warn('TWITCH_REFRESH_TOKEN mangler — tokenet fornyes ikke automatisk');
+  }
+
   await bootstrap();
 
   const joined = channels.names();
@@ -155,7 +196,7 @@ async function main() {
   const client = new tmi.Client({
     options: { debug: false, skipUpdatingEmotesets: true },
     connection: { reconnect: true, secure: true },
-    identity: { username: twitch.username, password: twitch.password },
+    identity: { username: twitch.username, password: auth.password },
     // tmi.js skriver i dette array og sætter "#" foran hvert navn, så det får
     // en kopi — ellers ændrer vores egne kanalnavne sig under os.
     channels: [...joined],
@@ -210,6 +251,8 @@ async function main() {
 
   await client.connect();
   startTracker();
+
+  if (auth.canRefresh) startTokenRefresh(client, auth);
 }
 
 // Kun når filen køres direkte, så index.js kan importeres i en test.
