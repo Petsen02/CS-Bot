@@ -291,6 +291,13 @@ journalctl -u cs-bot -f
 Botten skriver også sin egen log til `logs/`, med en fil pr. dag, og lægger
 hver uhåndteret fejl i `logs/crashes/` med fuld stak.
 
+Og `logs/boot.log` skrives af `index.js` i roden, før noget andet indlæses.
+Den findes fordi alt hvad der kan gå galt ved opstart går galt *før* loggeren
+er indlæst — den første ikke-indbyggede import er `tmi.js`, og mangler den,
+kaster Node med det samme. På et panel hvor konsollen er upålidelig efterlader
+det ellers nul spor, kun en container der standser. `boot.log` siger hvad der
+fejlede, og peger på den sandsynlige udvej.
+
 ## Datakilder
 
 - Elo, level, kampe, igangværende kampe og ranglister:
