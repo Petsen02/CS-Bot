@@ -1,0 +1,36 @@
+[Unit]
+Description=CS-Bot — Twitch chat bot for Counter-Strike 2 rank via FACEIT
+Documentation=https://github.com/Petsen02/CS-Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=csbot
+WorkingDirectory=/opt/cs-bot
+ExecStart=/usr/bin/node src/index.js
+
+# Genstart ved nedbrud, men giv op hvis den fejler i ring — en ugyldig
+# API-nøgle skal ikke give uendelige genstarter mod FACEIT.
+Restart=on-failure
+RestartSec=10
+StartLimitBurst=5
+StartLimitIntervalSec=300
+
+# SIGTERM er det signal botten gemmer sin målte elo på. Giv den tid til det
+# frem for at blive dræbt midt i en skrivning.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+StandardOutput=journal
+StandardError=journal
+
+# data/ og logs/ skal være skrivbare; resten behøver den ikke.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/cs-bot/data /opt/cs-bot/logs
+
+[Install]
+WantedBy=multi-user.target

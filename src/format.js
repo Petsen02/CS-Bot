@@ -1,0 +1,192 @@
+import { config } from './config.js';
+import { formatPlayerElo, formatLevel, formatEloDelta, levelFor } from './elo.js';
+import { mapName } from './maps.js';
+import { formatDate, formatClock } from './time.js';
+
+/** Samme felt-adskiller som LoL-botten, så de to læses ens i chatten. */
+export const SEP = ' │ ';
+
+/** Twitch afviser beskeder over 500 tegn. Klip frem for at tabe hele svaret. */
+export function truncate(message, limit = 480) {
+  if (message.length <= limit) return message;
+  return `${message.slice(0, limit - 1)}…`;
+}
+
+function oneDecimal(value) {
+  return (Math.round(value * 10) / 10).toFixed(1);
+}
+
+// K/D skrives med to decimaler i al CS-statistik. 1.4 i stedet for 1.41 ser
+// ud som en afrundingsfejl for folk der er vant til tallet.
+function twoDecimals(value) {
+  return (Math.round(value * 100) / 100).toFixed(2);
+}
+
+/** "PETSEN LEVEL10: 2347 elo (Rank#412)" */
+export function formatPlayerRank({ nickname, elo, level, position }) {
+  const base = formatPlayerElo({ nickname, elo, level }, config.rankStyle);
+
+  // Placering vises kun nær toppen. Derover er den støj, og FACEIT's
+  // rankings dækker alligevel kun Challenger-feltet.
+  const show = Number.isFinite(position) && position > 0
+    && position <= config.rankingPositionLimit;
+
+  return show ? `${base} (Rank#${position})` : base;
+}
+
+/** Nummereret, højeste elo først, adskilt af bjælken. */
+export function formatRanksMessage(players) {
+  if (players.length === 0) return 'Der er ingen spillere på listen endnu';
+
+  return players
+    .map((player, index) => `${index + 1}. ${formatPlayerRank(player)}`)
+    .join(SEP);
+}
+
+/**
+ * "PETSEN: 3W 2L (+47 elo) 🟩🟩🟥🟩🟥"
+ *
+ * Firkanterne løber ældst til nyest. Elo-summen udelades helt når ingen af
+ * dagens kampe blev målt, frem for at påstå et misvisende 0.
+ */
+export function formatSession({ nickname, results, eloTotal, measuredCount }) {
+  if (results.length === 0) return `${nickname} har ikke spillet FACEIT i dag`;
+
+  const wins = results.filter(Boolean).length;
+  const losses = results.length - wins;
+  const squares = results.map((won) => (won ? '🟩' : '🟥')).join('');
+
+  const elo = measuredCount > 0 ? ` (${formatEloDelta(eloTotal)} elo)` : '';
+
+  // Når kun nogle kampe er målt, skal det ikke se ud som dagens fulde facit.
+  const partial = measuredCount > 0 && measuredCount < results.length
+    ? ` [${measuredCount}/${results.length} målt]`
+    : '';
+
+  return `${nickname}: ${wins}W ${losses}L${elo}${partial} ${squares}`;
+}
+
+/** "PETSEN LEVEL9: 1920 elo │ mangler 81 elo til LEVEL10 (ca 4 wins)" */
+export function formatNextRank({ nickname, elo, level, next, wins }) {
+  const base = formatPlayerElo({ nickname, elo, level }, config.rankStyle);
+
+  if (!next) return `${base}${SEP}er på højeste level`;
+
+  const target = formatLevel(next.level, config.rankStyle);
+  const estimate = Number.isFinite(wins) && wins > 0 ? ` (ca ${wins} ${wins === 1 ? 'win' : 'wins'})` : '';
+
+  return `${base}${SEP}mangler ${next.needed} elo til ${target}${estimate}`;
+}
+
+/**
+ * "PETSEN │ Mirage 13-9 W │ 24-17-6 │ 1.41 K/D │ 94.2 ADR │ 48% HS │ +25 elo"
+ *
+ * Felter uden data udelades i stedet for at vise en nulværdi: ADR er endnu
+ * ubekræftet i FACEIT's CS2-svar, og "0.0 ADR" ville læses som et faktum.
+ */
+export function formatLastGame(game) {
+  const parts = [game.nickname];
+
+  const map = mapName(game.map);
+  const score = game.score ? ` ${game.score}` : '';
+  const outcome = game.won === true ? ' W' : game.won === false ? ' L' : '';
+  if (map) parts.push(`${map}${score}${outcome}`.trim());
+  else if (score || outcome) parts.push(`${score}${outcome}`.trim());
+
+  if (Number.isFinite(game.kills) && Number.isFinite(game.deaths)) {
+    const assists = Number.isFinite(game.assists) ? `-${game.assists}` : '';
+    parts.push(`${game.kills}-${game.deaths}${assists}`);
+  }
+
+  if (Number.isFinite(game.kd)) parts.push(`${twoDecimals(game.kd)} K/D`);
+  if (Number.isFinite(game.adr)) parts.push(`${oneDecimal(game.adr)} ADR`);
+  if (Number.isFinite(game.hs)) parts.push(`${Math.round(game.hs)}% HS`);
+  if (Number.isFinite(game.eloDelta)) parts.push(`${formatEloDelta(game.eloDelta)} elo`);
+
+  if (parts.length === 1) return `${game.nickname} — ingen statistik på seneste kamp`;
+
+  return parts.join(SEP);
+}
+
+/**
+ * "Igangværende: Mirage │ PETSENs hold 2104 snit │ modstandere 2210 snit"
+ *
+ * Gennemsnittet er kun så godt som de spillere FACEIT giver elo for. Hvor
+ * mange der faktisk indgik, står med, så et snit baseret på tre af fem ikke
+ * læses som hele holdet.
+ */
+export function formatLobby({ nickname, map, teams, status }) {
+  if (!teams || teams.length === 0) {
+    return `${nickname} er ikke i en FACEIT-kamp lige nu`;
+  }
+
+  const parts = [];
+
+  const name = mapName(map);
+  parts.push(name ? `Igangværende: ${name}` : 'Igangværende kamp');
+
+  for (const team of teams) {
+    if (!Number.isFinite(team.average)) {
+      parts.push(`${team.label}: ingen elo-data`);
+      continue;
+    }
+
+    const partial = team.counted < team.size ? ` (${team.counted}/${team.size})` : '';
+    parts.push(`${team.label} ${Math.round(team.average)} snit${partial}`);
+  }
+
+  if (status && status !== 'ONGOING') parts.push(`status ${status}`);
+
+  return parts.join(SEP);
+}
+
+/**
+ * "PETSEN LEVEL10: 2347 elo │ DK #12 │ EU #418 │ opdateret 04/11/26 kl 00:00"
+ *
+ * Der står EU, ikke "verden": FACEIT's rankings er altid regionale, så et
+ * globalt tal findes ikke. At skrive "verden" over et regionstal ville være en
+ * påstand API'et ikke kan bakke op.
+ */
+export function formatTop({ nickname, elo, level, country, countryPosition, region, regionPosition, at }) {
+  const parts = [formatPlayerElo({ nickname, elo, level }, config.rankStyle)];
+
+  parts.push(
+    Number.isFinite(countryPosition) && countryPosition > 0
+      ? `${country} #${countryPosition}`
+      : `${country}: uden for listen`,
+  );
+
+  parts.push(
+    Number.isFinite(regionPosition) && regionPosition > 0
+      ? `${region} #${regionPosition}`
+      : `${region}: uden for listen`,
+  );
+
+  if (at) {
+    parts.push(`opdateret ${formatDate(config.timezone, at)} ${formatClock(config.timezone, at)}`);
+  }
+
+  return parts.join(SEP);
+}
+
+/** "PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)" */
+export function formatMaps({ nickname, best, worst }) {
+  if (!best) return `${nickname} — ingen map-statistik endnu`;
+
+  const describe = (entry) =>
+    `${mapName(entry.map)} ${Math.round(entry.winRate)}% (${entry.matches})`;
+
+  const parts = [nickname, `bedst ${describe(best)}`];
+  // Med kun ét map spillet er "bedst" og "værst" det samme, hvilket ser forkert ud.
+  if (worst && worst.map !== best.map) parts.push(`værst ${describe(worst)}`);
+
+  return parts.join(SEP);
+}
+
+/** Hjælper til !oldplayerlist og lignende: en læsbar liste af nicks. */
+export function formatNicknames(players) {
+  if (players.length === 0) return 'listen er tom';
+  return players.map((p) => p.nickname).join(', ');
+}
+
+export { levelFor };

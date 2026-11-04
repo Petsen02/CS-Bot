@@ -55,7 +55,7 @@ Tallene i parentes er linjer i LoL-botten.
 |---|---|
 | `riot.js` (220) | `faceit.js` — samme form: fejlklasse, `describe(status)`, retry, limiter pr. region, cache pr. emne |
 | `ladder.js` (175) | `elo.js` — meget enklere. CS2 har ingen tier/division-matematik, bare ét tal og 10 faste level-grænser |
-| `cutoffs.js` (117) | `challenger.js` — top 1.000 pr. region i stedet for Challenger/GM-cutoffs |
+| `cutoffs.js` (117) | Udgår. `!top` slår placeringen op direkte, så der er intet at planlægge og cache på klokkeslæt |
 | `champions.js` (50) | `maps.js` — statisk liste (Mirage, Inferno, Nuke, Ancient, Dust2, Train, Anubis). Intet Data Dragon, intet preload |
 | `lolpros.js` (75) | Udskydes. HLTV har ingen officiel API. `!lobby` viser kun gennemsnitselo i v1 |
 | `commands.js` (474) | Omskrives pr. kommando, samme struktur |
@@ -71,7 +71,7 @@ Tallene i parentes er linjer i LoL-botten.
 | `!nextrank` | `!nextrank [nick]` | `PETSEN LEVEL9: 1920 elo │ mangler 81 elo til LEVEL10` |
 | `!lastgame` | `!lastgame [nick]` | `PETSEN │ Mirage 13-9 W │ 24-17-6 │ 1.41 K/D │ 94.2 ADR │ 48% HS` |
 | `!lobby` | `!lobby [nick]` | Gennemsnitselo i igangværende kamp, pr. hold |
-| `!chal` / `!cutoff` | `!chal` | `EU CHALLENGER: 2 812 elo │ top 1000 │ opdateret 04/11/26 kl 00:00` |
+| `!chal` / `!cutoff` | `!top` | `PETSEN LEVEL10: 2347 elo │ DK #12 │ EU #418` — land og region, ikke cutoffs |
 | — | `!maps [nick]` | Ny: bedste og dårligste map efter winrate. FACEIT giver segmenter pr. map gratis |
 
 Admin-kommandoerne beholder `!old`-præfikset, så muskelhukommelsen virker på
@@ -212,15 +212,25 @@ RANK_CACHE_SECONDS=60
 COMMAND_COOLDOWN_SECONDS=5
 ```
 
-## 10. Eget repo, kopieret kode
+## 10. Eget repo, frisk kode, samme kommandoer
 
-CS-botten bliver sit eget repo med koden kopieret ind, ikke en delt pakke
-mellem de to bots.
+CS-botten er sit eget repo med sin egen kode. Besluttet efter planen blev
+skrevet: ikke en port af LoL-botten, men et nyt kodebase der genbruger dens
+*mønstre* og dens *kommandonavne*.
 
 Begrundelse: en fælles pakke ville betyde, at en ændring til CS-botten kan
-vælte LoL-botten, som kører i produktion. De fire helt generiske filer
-(`cache`, `limiter`, `logger`, `time`) er tilsammen under 400 linjer og ændrer
-sig sjældent. Duplikering er den billigere fejl her.
+vælte LoL-botten, som kører i produktion. Og en linje-for-linje-kopi ville
+trække Riot-specifikke antagelser med sig — tiers, divisioner, to slags
+værtsnavne — som intet af har en pendant i CS.
+
+Hvad der faktisk er genbrugt, er mønstrene: atomare skrivninger, TTL/LRU-cache,
+kø-baseret rate limiting, adaptiv polling, kommandotabel med rettighedsniveauer.
+De er skrevet om til CS frem for kopieret.
+
+Hvad der *er* bevaret ordret, er kommando-vokabularet. `!rank`, `!ranks`,
+`!session`, `!nextrank`, `!lastgame`, `!lobby` og hele `!old`-sættet betyder det
+samme i begge bots, så muskelhukommelsen virker på tværs. `!chal` er den ene
+undtagelse, erstattet af `!top`, fordi FACEIT har ranglister og ikke cutoffs.
 
 Hvis de to bots senere skal dele kode, er `@petsen02/twitch-bot-core` en
 separat beslutning, der kan tages uden at røre hverken kommandoer eller
