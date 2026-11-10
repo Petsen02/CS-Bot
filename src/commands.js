@@ -12,7 +12,6 @@ import {
   getMatch,
   getMatchStats,
   getPlayerStats,
-  getPlayerMatchStats,
   getRanking,
   getPlayerTeams,
   getTeam,
@@ -887,35 +886,32 @@ export function commandRemoveMain({ channel, argument, viewer }) {
  * trackeren har nået at måle den seneste kamp. Denne svarer på begge i
  * chatten, hvor det kan køres mens der faktisk spilles.
  */
-export async function commandLiveDebug({ channel, argument: raw, viewer }) {
-  let argument = raw;
+export async function commandLiveDebug({ channel, argument, viewer }) {
+  // Et room-link afgør spørgsmålet direkte: hvad siger FACEIT om kampen, og
+  // står den i deltagernes historik mens den kører? Det er præcis det !hold
+  // hviler på, og det kan kun måles på en kamp der er i gang.
+  const matchId = parseMatchId(argument);
+  if (matchId) {
+    const match = await getMatch(matchId);
+    const status = String(match?.status ?? '?');
 
-  // "stats <nick>": hvad står der i den pagineret kamp-statistik?
-  //
-  // Botten måler elo selv, fordi historikken ikke oplyser den. Men
-  // /players/{id}/games/cs2/stats er aldrig blevet åbnet, og står der elo pr.
-  // kamp dér, kan dagens tal hentes frem for måles — også for en spiller der
-  // først blev slået op midt på dagen.
-  if (/^stats\s+/i.test(argument ?? '')) {
-    argument = argument.replace(/^stats\s+/i, '');
-    const { player } = await resolveTarget(channel, argument, viewer);
+    const roster = Object.values(match?.teams ?? {})
+      .flatMap((faction) => faction?.roster ?? faction?.players ?? []);
+    const someone = roster.find((p) => p?.player_id);
 
-    const payload = await getPlayerMatchStats(player.playerId, { limit: 3 });
-    const items = payload?.items ?? [];
-    if (items.length === 0) return `${player.nickname}${SEP}ingen rækker`;
+    const parts = [`kamp ${status}`, `live efter botten: ${isLive(status) ? 'ja' : 'nej'}`];
 
-    const outer = Object.keys(items[0]).join(',');
-    const inner = Object.keys(items[0].stats ?? {});
+    if (!someone) return `${parts.join(SEP)}${SEP}ingen spillere i svaret`;
 
-    // Alt der overhovedet kunne være elo, fremhævet.
-    const eloish = inner.filter((key) => /elo|rating|points/i.test(key));
+    const history = await getHistory(someone.player_id, { limit: 10 });
+    const found = history.find((item) => item.match_id === matchId);
 
-    return [
-      `${player.nickname}: ${items.length} rækker`,
-      `felter: ${outer}`,
-      eloish.length ? `ELO-AGTIGE: ${eloish.join(', ')}` : 'INGEN elo-agtige felter',
-      `stats: ${inner.slice(0, 18).join(',')}`,
-    ].join(SEP);
+    parts.push(`${someone.nickname ?? 'spiller'}s historik: ${history.length} kampe`);
+    parts.push(found
+      ? `KAMPEN ER I HISTORIKKEN som "${found.status ?? '?'}"`
+      : 'KAMPEN ER IKKE I HISTORIKKEN');
+
+    return parts.join(SEP);
   }
 
   const { player } = await resolveTarget(channel, argument, viewer);

@@ -316,7 +316,16 @@ eget `skill_level` og siger til hvis de er uenige.
 
 ## Hvor elo-tallene kommer fra
 
-FACEIT udstiller nuværende elo, men **ingen elo pr. kamp**. Hvert elo-tal
+FACEIT udstiller nuværende elo, men **ingen elo-historik overhovedet**. Det
+er tjekket tre steder, ikke antaget:
+
+| Rute | Elo? |
+|---|---|
+| `/players/{id}/history` | nej |
+| `/matches/{id}/stats` — 47 felter | nej |
+| `/players/{id}/games/cs2/stats` | nej, kun Map, Final Score, K/D, HS% … |
+
+Der er altså intet at hente, og ingen grund til at lede igen. Hvert elo-tal
 `!session` og `!lastgame` viser er derfor målt af botten selv: den tager et
 snapshot af hver tracket spillers elo, og når en ny kamp dukker op, tilskrives
 ændringen den kamp.
