@@ -478,6 +478,55 @@ async function findLiveMatch(playerId) {
   return null;
 }
 
+/**
+ * Hvad live-søgningen ser. Samme kilder som findLiveMatch, men rapporteret
+ * frem for brugt — så "ikke i en kamp" kan skelnes fra "fandt ikke kampen".
+ */
+export async function describeLiveSearch(playerId) {
+  const [hubs, competitions] = await Promise.all([
+    getPlayerHubs(playerId).catch(() => []),
+    recentCompetitions(playerId).catch(() => []),
+  ]);
+
+  const sources = [
+    ...hubs.map((hub) => ({ kind: 'hub', id: hub.id, name: hub.name })),
+    ...competitions
+      .filter((c) => c.id && c.type === 'championship')
+      .map((c) => ({ kind: 'turnering', id: c.id, name: c.name })),
+  ];
+
+  const seen = [];
+  let foundPlayer = false;
+
+  for (const source of sources.slice(0, 10)) {
+    let payload;
+    try {
+      payload = source.kind === 'hub'
+        ? await getHubMatches(source.id)
+        : await getChampionshipMatches(source.id, { type: 'ongoing', limit: 20 });
+    } catch (error) {
+      seen.push(`${source.name ?? source.id}: ${error.status ?? 'fejl'}`);
+      continue;
+    }
+
+    const live = (payload?.items ?? []).filter((item) => isLive(item.status));
+    seen.push(`${source.name ?? source.id}: ${live.length}`);
+
+    for (const item of live) {
+      const roster = Object.values(item.teams ?? {})
+        .flatMap((faction) => faction?.roster ?? faction?.players ?? []);
+      if (roster.some((p) => (p?.player_id ?? p?.id) === playerId)) foundPlayer = true;
+    }
+  }
+
+  return {
+    hubs: hubs.length,
+    competitions: sources.length - hubs.length,
+    seen,
+    foundPlayer,
+  };
+}
+
 /** Spillerens eget hold i en kamp, og de øvrige i den. */
 function factionsOf(match, playerId) {
   const own = [];
@@ -986,6 +1035,13 @@ export async function commandLiveDebug({ channel, argument, viewer }) {
 
   const snapshot = store.getSnapshot(player.playerId);
   parts.push(`snapshot: ${snapshot ? `${snapshot.elo} elo` : 'ingen'}`);
+
+  // Hvor live-søgningen leder, og hvad den fandt. Uden det kan "ikke i en
+  // kamp" ikke skelnes fra "fandt ikke kampen".
+  const search = await describeLiveSearch(player.playerId);
+  parts.push(`kilder: ${search.hubs} hubs + ${search.competitions} turneringer`);
+  parts.push(search.seen.length ? `ongoing: ${search.seen.join(', ')}` : 'ingen kilder');
+  parts.push(`hende i en af dem: ${search.foundPlayer ? 'JA' : 'nej'}`);
 
   return parts.join(SEP);
 }
