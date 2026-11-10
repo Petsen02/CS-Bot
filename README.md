@@ -84,11 +84,9 @@ betjene flere streamere uden at de ser hinandens spillere.
 `!hold` viser holdkammeraterne i den igangværende kamp. Spilleren selv
 udelades; man ved godt man er der, og pladsen er bedre brugt på de andre.
 
-Kan den igangværende kamp ikke findes — FACEIT ser ikke ud til at lægge
-uafsluttede kampe i spillerens historik — vises den **seneste** kamp i stedet,
-tydeligt mærket `sidste kamp (Mirage)`. Spiller man på en stack, er det de
-samme mennesker, og et forkert nu-svar ville være værre end et ærligt
-før-svar.
+Kun den igangværende kamp. Er der ingen, svarer den `er ikke i en FACEIT-kamp
+lige nu` — en afsluttet kamps opstilling er støj når spørgsmålet er hvem der
+spiller nu.
 
 **Partyet selv kan ikke hentes.** Data API'et dækker spillere, kampe, hold,
 turneringer, ranglister og hubs — ingen parties. Og det interne web-API svarer

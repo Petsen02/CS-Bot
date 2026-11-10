@@ -495,25 +495,10 @@ export async function commandLobby({ channel, argument, viewer }) {
 export async function commandTeam({ channel, argument, viewer }) {
   const { player } = await resolveTarget(channel, argument, viewer);
 
-  const history = await getHistory(player.playerId, { limit: 3 });
-
-  // Helst den igangværende kamp. Kan den ikke findes — og FACEIT ser ikke ud
-  // til at lægge uafsluttede kampe i historikken — er den seneste kamp det
-  // næstbedste svar: spiller man på en stack, er det de samme mennesker.
-  // Svaret siger hvilken af delene det er, så "sidste kamp" ikke læses som
-  // "lige nu".
-  const live = history.find((item) => isLive(item.status));
-  const latest = live ?? history.find((item) => isFinished(item.status));
-
-  if (!latest?.match_id) return formatTeam({ nickname: player.nickname, mates: [] });
-
-  let match;
-  try {
-    match = await getMatch(latest.match_id);
-  } catch (error) {
-    logger.warn(`!hold kamp fejlede: ${error.message}`);
-    return formatTeam({ nickname: player.nickname, mates: [] });
-  }
+  // Kun den igangværende kamp. En afsluttet kamps opstilling er støj når
+  // spørgsmålet er hvem der spiller NU — så hellere sige at der ingen kamp er.
+  const match = await findLiveMatch(player.playerId);
+  if (!match) return formatTeam({ nickname: player.nickname, mates: [] });
 
   const { own } = factionsOf(match, player.playerId);
 
@@ -524,7 +509,6 @@ export async function commandTeam({ channel, argument, viewer }) {
     nickname: player.nickname,
     map: match?.voting?.map?.pick?.[0] ?? match?.map ?? null,
     mates,
-    live: Boolean(live),
   });
 }
 

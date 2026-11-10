@@ -278,24 +278,8 @@ test('formatTeam siger til når der ingen kamp er', async () => {
 
   assert.equal(
     formatTeam({ nickname: 'Petsen', mates: [] }),
-    'Petsen har ingen FACEIT-kampe at vise',
+    'Petsen er ikke i en FACEIT-kamp lige nu',
   );
-});
-
-test('formatTeam markerer en afsluttet kamp som sidste kamp', async () => {
-  const { formatTeam } = await import('../src/format.js');
-
-  // Kan den igangværende kamp ikke findes, er den seneste næstbedste svar —
-  // men det må ikke læses som "lige nu".
-  const message = formatTeam({
-    nickname: 'dewi',
-    map: 'de_mirage',
-    mates: [{ nickname: 'vigg0', level: 10 }],
-    live: false,
-  });
-
-  assert.ok(message.includes('sidste kamp (Mirage)'), message);
-  assert.ok(message.includes('vigg0 LVL10'), message);
 });
 
 test('formatEseaTeam lister truppen', async () => {

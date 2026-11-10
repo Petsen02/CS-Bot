@@ -331,20 +331,17 @@ export function formatNextMatch({ nickname, match }) {
  * Medspillerne i den igangværende kamp. Spilleren selv udelades — man ved godt
  * man er der, og pladsen er bedre brugt på de andre.
  */
-export function formatTeam({ nickname, map, mates, live = true }) {
+export function formatTeam({ nickname, map, mates }) {
+  // Kun den igangværende kamp. En afsluttet kamps opstilling er støj når
+  // spørgsmålet er hvem der spiller nu.
   if (!mates || mates.length === 0) {
-    return `${nickname} har ingen FACEIT-kampe at vise`;
+    return `${nickname} er ikke i en FACEIT-kamp lige nu`;
   }
 
   const parts = [nickname];
 
-  // En afsluttet kamp er stadig et svar, men seeren skal vide det ikke er nu.
   const name = mapName(map);
-  if (live) {
-    if (name) parts.push(name);
-  } else {
-    parts.push(name ? `sidste kamp (${name})` : 'sidste kamp');
-  }
+  if (name) parts.push(name);
 
   parts.push(mates
     .map((mate) => {
