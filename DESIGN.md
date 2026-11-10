@@ -454,9 +454,10 @@ Dokumentationen viser at svaret også bærer `league_id`, `icon`,
 `long_description`, `short_description` — og `queues`. Et kø-id er netop det
 der kunne føre videre, og det blev skåret væk af vores egen kode.
 
-`!csbotqueue` printer nu hele nøglelisten og prøver `/queues/{id}` for hver
-kø. Lektien står her frem for i en commit-besked: **en probe der forkorter
-sit svar kan konkludere det modsatte af sandheden.**
+Målt på ny uden afkortning: svaret bærer `id,name,game,region,icon,
+short_description,long_description,queues,league_id` — ti køer, med navne som
+`CS2 5v5 EU - 2001-2900`. Lektien står her frem for i en commit-besked: **en
+probe der forkorter sit svar kan konkludere det modsatte af sandheden.**
 
 ### Queues: den rigtige sti, og hvorfor den heller ikke hjælper
 
@@ -497,9 +498,9 @@ Det ændrer konklusionen ovenfor på ét punkt. Kø-dataen er ikke fraværende f
 API'et; den er forbeholdt den der ejer køen. "Europe 5v5 Queue" ejes af FACEIT
 selv, så den er uden for rækkevidde uanset hvad vi finder på.
 
-Men **ejer man en hub, ejer man dens kø**. `!csbothub` måler det: den prøver
-`/hubs/{id}/queues` på hver af spillerens hubs og rapporterer statuskoden. En
-403 betyder "ikke ejer" og er et lige så gyldigt svar som en 200.
+Men **ejer man en hub, ejer man dens kø**. Målt på to hubs: `/hubs/{id}/queues` svarer 404 — ruten findes ikke, mens
+`/hubs/{id}/members` på samme nøgle svarer 200. Køen ligger under spillet, ikke
+under hubben.
 
 Det er endnu en grund til at hub-vejen er den rigtige: den er ikke en omvej
 uden om en begrænsning, den er siden af hegnet hvor adgangen findes.
