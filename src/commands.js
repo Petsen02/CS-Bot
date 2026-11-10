@@ -679,9 +679,14 @@ export async function commandTeam({ channel, argument, viewer }) {
   const { player } = await resolveTarget(channel, argument, viewer);
 
   // Kun den igangværende kamp. En afsluttet kamps opstilling er støj når
-  // spørgsmålet er hvem der spiller NU — så hellere sige at der ingen kamp er.
+  // spørgsmålet er hvem der spiller NU.
+  //
+  // MÅLT: en kø-kamp kan botten slet ikke finde (DESIGN.md §14), så det her
+  // svar udebliver oftere end det kommer. Frem for at sende folk videre til
+  // en anden kommando viser den ESEA-truppen med det samme — det er det
+  // bedste svar der findes på "hvem spiller du med", når kampen er usynlig.
   const match = await findLiveMatch(player.playerId);
-  if (!match) return formatTeam({ nickname: player.nickname, mates: [] });
+  if (!match) return commandEseaTeam({ channel, argument, viewer });
 
   const { own } = factionsOf(match, player.playerId);
 

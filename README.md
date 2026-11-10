@@ -84,9 +84,9 @@ betjene flere streamere uden at de ser hinandens spillere.
 `!hold` viser holdkammeraterne i den igangværende kamp. Spilleren selv
 udelades; man ved godt man er der, og pladsen er bedre brugt på de andre.
 
-Kun den igangværende kamp. Er der ingen, svarer den `er ikke i en FACEIT-kamp
-lige nu` — en afsluttet kamps opstilling er støj når spørgsmålet er hvem der
-spiller nu.
+Kun den igangværende kamp — en afsluttet kamps opstilling er støj når
+spørgsmålet er hvem der spiller nu. Kan den ingen kamp se, viser den
+ESEA-truppen i stedet, som `!eseahold` gør.
 
 **Spillerens historik rummer ikke en kamp der er i gang.** Det er målt: en
 kamp med status `ONGOING` stod slet ikke i deltagernes historik mens den kørte.
@@ -94,12 +94,14 @@ kamp med status `ONGOING` stod slet ikke i deltagernes historik mens den kørte.
 turneringer de seneste kampe hørte til — om hvad de har kørende.
 
 Det dækker ESEA og hub-spil. En **ren matchmaking-kamp** hører ikke til nogen
-af delene, og den kan botten ikke finde: FACEIT udstiller intet "hvad spiller
-denne spiller lige nu". Målt på en kø-kamp der kørte: alle seks kilder —
-fem hubs og en turnering — svarede, og ingen af dem havde en kamp i gang.
+af delene, og den kan botten ikke finde. Det er ikke et hul i koden: fem
+dokumenterede ruter er prøvet, fire svarer 404, og den femte svarer på et
+andet spørgsmål. FACEIT's egen web-rute afviser en server uden
+browser-session. DESIGN.md §14 har tallene.
 
-Derfor peger svaret videre til `!eseahold`, som viser ESEA-truppen uanset om
-der spilles lige nu. Ellers ville en kø-kamp se ud som en blindgyde.
+Derfor falder `!hold` tilbage til ESEA-truppen frem for at sende folk videre
+til en anden kommando. Så svarer den altid med noget brugbart, og `!eseahold`
+bliver stående for dem der vil have truppen direkte.
 
 **Partyet selv kan ikke hentes.** Data API'et dækker spillere, kampe, hold,
 turneringer, ranglister og hubs — ingen parties. Og det interne web-API svarer
