@@ -196,6 +196,7 @@ export async function commandSession({ channel, argument, viewer }) {
 
   const results = [];
   const endedAt = [];
+  let eloMeasured = [];
   let eloTotal = 0;
   let measuredCount = 0;
 
@@ -209,7 +210,10 @@ export async function commandSession({ channel, argument, viewer }) {
     results.push(won);
     endedAt.push(endedAtMs(item));
 
-    if (typeof record?.eloDelta === 'number') {
+    const hasElo = typeof record?.eloDelta === 'number';
+    eloMeasured.push(hasElo);
+
+    if (hasElo) {
       eloTotal += record.eloDelta;
       measuredCount += 1;
     }
@@ -231,8 +235,8 @@ export async function commandSession({ channel, argument, viewer }) {
   const baseline = store.getBaseline(player.playerId, localDateKey(config.timezone));
   const snapshot = store.getSnapshot(player.playerId);
 
-  ({ eloTotal, measuredCount } = attributeElo({
-    endedAt, baseline, snapshot, eloTotal, measuredCount,
+  ({ eloTotal, measuredCount, measured: eloMeasured } = attributeElo({
+    endedAt, baseline, snapshot, eloTotal, measuredCount, measured: eloMeasured,
   }));
 
   return formatSession({
@@ -240,6 +244,7 @@ export async function commandSession({ channel, argument, viewer }) {
     results,
     eloTotal,
     measuredCount,
+    measured: eloMeasured,
   });
 }
 
@@ -297,17 +302,20 @@ export function deriveMatchDelta({ matchEndedAt, dayEndedAt, baseline, snapshot 
   return snapshot.elo - baseline.elo;
 }
 
-export function attributeElo({ endedAt, baseline, snapshot, eloTotal, measuredCount }) {
+export function attributeElo({ endedAt, baseline, snapshot, eloTotal, measuredCount, measured }) {
   if (!baseline || !snapshot || baseline.at == null || !Number.isFinite(snapshot.elo)) {
-    return { eloTotal, measuredCount };
+    return { eloTotal, measuredCount, measured };
   }
 
-  const covered = endedAt.filter((at) => at > baseline.at).length;
-  if (covered === 0) return { eloTotal, measuredCount };
+  // Hvilke kampe baselinen dækker, ikke kun hvor mange: !session tegner en
+  // streg mellem de talte og de utalte, og den skal stå det rigtige sted.
+  const covered = endedAt.map((at) => at > baseline.at);
+  const count = covered.filter(Boolean).length;
+  if (count === 0) return { eloTotal, measuredCount, measured };
 
   // Baselinen slår enkeltkampene sammenlagt: den er stadig rigtig når en
   // kamp imellem ikke blev målt.
-  return { eloTotal: snapshot.elo - baseline.elo, measuredCount: covered };
+  return { eloTotal: snapshot.elo - baseline.elo, measuredCount: count, measured: covered };
 }
 
 /**
@@ -679,14 +687,9 @@ export async function commandTeam({ channel, argument, viewer }) {
   const { player } = await resolveTarget(channel, argument, viewer);
 
   // Kun den igangværende kamp. En afsluttet kamps opstilling er støj når
-  // spørgsmålet er hvem der spiller NU.
-  //
-  // MÅLT: en kø-kamp kan botten slet ikke finde (DESIGN.md §14), så det her
-  // svar udebliver oftere end det kommer. Frem for at sende folk videre til
-  // en anden kommando viser den ESEA-truppen med det samme — det er det
-  // bedste svar der findes på "hvem spiller du med", når kampen er usynlig.
+  // spørgsmålet er hvem der spiller NU — så hellere sige at der ingen kamp er.
   const match = await findLiveMatch(player.playerId);
-  if (!match) return commandEseaTeam({ channel, argument, viewer });
+  if (!match) return formatTeam({ nickname: player.nickname, mates: [] });
 
   const { own } = factionsOf(match, player.playerId);
 

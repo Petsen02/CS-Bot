@@ -56,12 +56,31 @@ export function formatRanksMessage(players) {
  * Firkanterne løber ældst til nyest. Elo-summen udelades helt når ingen af
  * dagens kampe blev målt, frem for at påstå et misvisende 0.
  */
-export function formatSession({ nickname, results, eloTotal, measuredCount }) {
+/**
+ * Dagens resultater som firkanter, med en streg hvor målingen skifter.
+ *
+ * "🟥🟥🟥🟩│🟥" siger at kun den sidste kamp er med i elo-tallet. De målte
+ * ligger normalt sidst — baselinen dækker alt efter sig — men når trackeren
+ * har målt enkeltkampe spredt ud, sættes der en streg ved hvert skift frem
+ * for at lade som om de lå samlet.
+ */
+function renderSquares(results, measured) {
+  let out = '';
+
+  for (let i = 0; i < results.length; i += 1) {
+    if (i > 0 && measured && measured[i] !== measured[i - 1]) out += '│';
+    out += results[i] ? '🟩' : '🟥';
+  }
+
+  return out;
+}
+
+export function formatSession({ nickname, results, eloTotal, measuredCount, measured }) {
   if (results.length === 0) return `${nickname} har ikke spillet FACEIT i dag`;
 
   const wins = results.filter(Boolean).length;
   const losses = results.length - wins;
-  const squares = results.map((won) => (won ? '🟩' : '🟥')).join('');
+  const squares = renderSquares(results, measured);
 
   // Uden en eneste måling er der ingen elo at vise, og et tomt felt ligner at
   // dagen gik i nul. Sig det i stedet — og sig at der måles fra næste kamp,
@@ -180,8 +199,7 @@ export function formatMultiKill({ aces, quads, triples }) {
  */
 export function formatLobby({ nickname, map, teams, status }) {
   if (!teams || teams.length === 0) {
-    return `${nickname} er ikke i en ESEA- eller hub-kamp lige nu`
-      + `${SEP}kø-kampe kan botten ikke se`;
+    return `${nickname} er ikke i en ESEA-kamp lige nu`;
   }
 
   const parts = [];
@@ -343,10 +361,7 @@ export function formatTeam({ nickname, map, mates }) {
   // denne spiller lige nu", og en kø-kamp hører hverken til en hub eller en
   // turnering. Svaret peger derfor videre, så det ikke ligner en blindgyde.
   if (!mates || mates.length === 0) {
-    // MÅLT: botten kan ikke se en kø-kamp overhovedet, så "er ikke i en kamp"
-    // ville påstå mere end den ved. Sig hvad den kan se, og hvad den ikke kan.
-    return `${nickname} er ikke i en ESEA- eller hub-kamp lige nu`
-      + `${SEP}kø-kampe kan botten ikke se${SEP}!eseahold viser truppen`;
+    return `${nickname} er ikke i en ESEA-kamp lige nu`;
   }
 
   const parts = [nickname];

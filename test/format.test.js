@@ -206,13 +206,11 @@ test('formatLobby viser snit og markerer delvise hold', () => {
   assert.ok(message.includes('(4/5)'), message);
 });
 
-test('formatLobby påstår ikke mere end botten kan se', () => {
-  // MÅLT: en kø-kamp er usynlig for botten, så "er ikke i en FACEIT-kamp"
-  // ville være et større udsagn end den kan stå inde for.
-  const message = formatLobby({ nickname: 'PETSEN', teams: [] });
-
-  assert.ok(message.startsWith('PETSEN er ikke i en ESEA- eller hub-kamp lige nu'), message);
-  assert.ok(message.includes('kø-kampe kan botten ikke se'), message);
+test('formatLobby siger til når der ingen kamp er', () => {
+  assert.equal(
+    formatLobby({ nickname: 'PETSEN', teams: [] }),
+    'PETSEN er ikke i en ESEA-kamp lige nu',
+  );
 });
 
 test('formatTop viser land og region, og kalder aldrig regionen "verden"', () => {
@@ -301,16 +299,13 @@ test('formatTeam viser medspillerne med level', async () => {
   assert.ok(!message.includes('Jonas LVL'), message);
 });
 
-test('formatTeam siger til når der ingen kamp er', async () => {
+test('formatTeam siger til når der ingen kamp er, og holder det kort', async () => {
   const { formatTeam } = await import('../src/format.js');
 
-  const message = formatTeam({ nickname: 'Petsen', mates: [] });
-
-  assert.ok(message.startsWith('Petsen er ikke i en ESEA- eller hub-kamp lige nu'), message);
-  assert.ok(message.includes('kø-kampe kan botten ikke se'), message);
-  // En kø-kamp er usynlig for botten, så svaret skal pege videre frem for at
-  // ligne en blindgyde.
-  assert.ok(message.includes('!eseahold'), message);
+  assert.equal(
+    formatTeam({ nickname: 'Petsen', mates: [] }),
+    'Petsen er ikke i en ESEA-kamp lige nu',
+  );
 });
 
 test('formatEseaTeam lister truppen', async () => {

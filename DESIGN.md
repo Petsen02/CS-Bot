@@ -170,8 +170,11 @@ der skete imellem. Men den blev oprindeligt kun brugt hvis den lå før dagens
 baselinen kasseret, og `!session` kunne så ikke vise elo resten af dagen.
 
 Nu tæller den de kampe den kan gøre rede for — dem der sluttede efter den — og
-`formatSession` skriver `[3/4 målt]` når den ikke dækker hele dagen. Reglen
-ligger i `attributeElo()` i `commands.js` og er testet uden netværk.
+`formatSession` skriver `[3/4 målt]` når den ikke dækker hele dagen. En streg
+i firkanterne viser hvor grænsen går: `🟥🟥🟥🟩│🟥`. Derfor returnerer
+`attributeElo()` *hvilke* kampe der er dækket og ikke kun hvor mange — ligger
+målingerne spredt, sættes der en streg ved hvert skift frem for at lade som om
+de lå samlet. Reglen er testet uden netværk.
 
 `!lastgame` kan baselinen også redde, men kun i ét tilfælde: når **præcis én**
 kamp ligger efter baselinen, er hele forskellen mellem baseline og nu netop

@@ -357,10 +357,14 @@ Det har to konsekvenser, som svarene er ærlige om:
 og det forbliver rigtigt selv når enkelte kampe blev misset, fx fordi botten
 var nede da de sluttede.
 
-Baselinen bruges kun hvis den blev taget **før dagens første kamp**. En
-baseline fra midt i en session ville i stilhed slette alt der kom før den, så
-i det tilfælde falder den tilbage til de målte kampe og skriver `[3/5 målt]`
-frem for et forkert totaltal.
+Baselinen dækker de kampe der sluttede **efter** den. Startede botten kl. 18
+og blev der spillet kl. 15, kan den ikke gøre rede for de tidlige kampe, men
+den kan gøre rede for resten. De tælles med, og svaret skriver `[1/5 målt]`
+frem for at lade som om tallet dækker hele dagen.
+
+Stregen i firkanterne viser hvor: `🟥🟥🟥🟩│🟥` betyder at kun den sidste
+kamp er med i elo-tallet. Ligger målingerne ikke samlet, sættes der en streg
+ved hvert skift.
 
 Er intet målt endnu, står der `ingen elo-data endnu │ måler fra næste kamp` i
 stedet for et tomt felt. Et tomt felt ligner at kommandoen er i stykker.

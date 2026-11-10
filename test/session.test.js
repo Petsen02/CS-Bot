@@ -13,9 +13,12 @@ test('baselinen dækker hele dagen og slår enkeltmålingerne', () => {
     snapshot,
     eloTotal: 25,
     measuredCount: 1,
+    measured: [false, true, false],
   });
 
-  assert.deepEqual(result, { eloTotal: 60, measuredCount: 3 });
+  assert.deepEqual(result, {
+    eloTotal: 60, measuredCount: 3, measured: [true, true, true],
+  });
 });
 
 test('en baseline fra midt på dagen dækker kun kampene efter den', () => {
@@ -26,9 +29,13 @@ test('en baseline fra midt på dagen dækker kun kampene efter den', () => {
     snapshot,
     eloTotal: 0,
     measuredCount: 0,
+    measured: [false, false, false],
   });
 
-  assert.deepEqual(result, { eloTotal: 50, measuredCount: 2 });
+  // Kampen kl. 10 ligger før baselinen og tælles ikke med.
+  assert.deepEqual(result, {
+    eloTotal: 50, measuredCount: 2, measured: [false, true, true],
+  });
 });
 
 test('en baseline efter dagens sidste kamp giver ingen elo-påstand', () => {
@@ -38,13 +45,16 @@ test('en baseline efter dagens sidste kamp giver ingen elo-påstand', () => {
     snapshot,
     eloTotal: 0,
     measuredCount: 0,
+    measured: [false, false],
   });
 
-  assert.deepEqual(result, { eloTotal: 0, measuredCount: 0 });
+  assert.deepEqual(result, {
+    eloTotal: 0, measuredCount: 0, measured: [false, false],
+  });
 });
 
 test('uden baseline eller snapshot står enkeltmålingerne', () => {
-  const sums = { eloTotal: 17, measuredCount: 2 };
+  const sums = { eloTotal: 17, measuredCount: 2, measured: [true, true] };
 
   assert.deepEqual(
     attributeElo({ endedAt: [10 * H], baseline: null, snapshot, ...sums }),
@@ -116,4 +126,49 @@ test('uden baseline eller snapshot udledes intet', () => {
   assert.equal(deriveMatchDelta({
     ...base, baseline: { elo: 2599 }, snapshot: { elo: 2570, at: 21 * H },
   }), null);
+});
+
+test('stregen sættes hvor målingen begynder', async () => {
+  const { formatSession } = await import('../src/format.js');
+
+  // Dewis dag: fem kampe, botten startede før den sidste.
+  const message = formatSession({
+    nickname: 'dewi',
+    results: [false, false, false, true, false],
+    eloTotal: -29,
+    measuredCount: 1,
+    measured: [false, false, false, false, true],
+  });
+
+  assert.ok(message.includes('🟥🟥🟥🟩│🟥'), message);
+  assert.ok(message.includes('[1/5 målt]'), message);
+});
+
+test('ingen streg når alle kampe er talt med', async () => {
+  const { formatSession } = await import('../src/format.js');
+
+  const message = formatSession({
+    nickname: 'dewi',
+    results: [true, false],
+    eloTotal: 4,
+    measuredCount: 2,
+    measured: [true, true],
+  });
+
+  assert.ok(message.includes('🟩🟥'), message);
+  assert.ok(!message.includes('│🟥'), message);
+});
+
+test('en streg ved hvert skift når målingerne ikke ligger samlet', async () => {
+  const { formatSession } = await import('../src/format.js');
+
+  const message = formatSession({
+    nickname: 'dewi',
+    results: [true, false, true],
+    eloTotal: 10,
+    measuredCount: 2,
+    measured: [true, false, true],
+  });
+
+  assert.ok(message.includes('🟩│🟥│🟩'), message);
 });
