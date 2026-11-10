@@ -458,6 +458,36 @@ der kunne føre videre, og det blev skåret væk af vores egen kode.
 kø. Lektien står her frem for i en commit-besked: **en probe der forkorter
 sit svar kan konkludere det modsatte af sandheden.**
 
+### Queues: den rigtige sti, og hvorfor den heller ikke hjælper
+
+Kø-ruten ligger under spillet: `GET /games/{game_id}/queues/{queue_id}`, og
+dokumentationen siger *"Available only for game or queue owners (organizers)"*.
+Fire gæt på `/queues/...` og `/hubs/{id}/queues` gav alle 404 — ikke 403, for
+stien var forkert, ikke adgangen.
+
+Men svaret afgør sagen uanset adgangen. Et Queue-objekt bærer:
+
+`adminTool` · `anticheatRequired` · `calculateElo` · `captainSelection` ·
+`checkIn` · `entityId` · `joinType` · `maxSkill` · `minSkill` · `noOfPlayers` ·
+`open` · `organizerId` · `paused` · `queueAlgorithm` · `queueName` · `region` ·
+`state` · `verifiedMatching`
+
+Det er **køens opsætning**, til den der administrerer den. Ikke ét felt om
+kampe, ikke ét felt om spillere. Selv med fuld ejeradgang kan ruten ikke sige
+hvem der spiller med hvem.
+
+### Den egentlige mur
+
+Matches-taggen rummer kun `/matches/{match_id}` og `/matches/{match_id}/stats`.
+Begge kræver at man **kender id'et i forvejen**. Der findes ingen rute i hele
+Data API'et der *lister* kampe — undtagen `/hubs/{id}/matches` og
+`/championships/{id}/matches`, hvor man spørger en beholder hvad den har
+kørende.
+
+Derfor virker `!hold` til hub- og ESEA-kampe og kan ikke komme til at virke
+til kø-kampe: en kø-kamp ligger ikke i en beholder man kan spørge, og der er
+ingen anden vej til dens id.
+
 ### Kø-dataen findes — adgangen er rollebaseret
 
 FACEIT's dokumentation siger om Queues-ruterne: *"Available only for game

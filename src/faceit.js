@@ -553,8 +553,10 @@ export async function probeMatchmaking(playerId) {
 
     const codes = [];
     for (const [label, path] of [
-      ['q', `/queues/${encodeURIComponent(queueId)}`],
-      ['q/queue', `/queues/${encodeURIComponent(queueId)}/queue`],
+      // DOKUMENTERET sti. Køen ligger under spillet, ikke i sin egen rod —
+      // fire gæt på /queues/... gav 404 før dokumentationen blev læst.
+      ['q', `/games/${encodeURIComponent(config.faceit.game)}`
+        + `/queues/${encodeURIComponent(queueId)}`],
     ]) {
       try {
         const body = await request(path, { retries: 0 });
