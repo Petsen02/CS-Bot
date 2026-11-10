@@ -88,6 +88,15 @@ Kun den igangværende kamp. Er der ingen, svarer den `er ikke i en FACEIT-kamp
 lige nu` — en afsluttet kamps opstilling er støj når spørgsmålet er hvem der
 spiller nu.
 
+**Spillerens historik rummer ikke en kamp der er i gang.** Det er målt: en
+kamp med status `ONGOING` stod slet ikke i deltagernes historik mens den kørte.
+`!hold` og `!lobby` spørger derfor de steder spilleren hører til — hubs og de
+turneringer de seneste kampe hørte til — om hvad de har kørende.
+
+Det dækker ESEA og hub-spil. En **ren matchmaking-kamp** hører ikke til nogen
+af delene, og den kan botten ikke finde: FACEIT udstiller intet "hvad spiller
+denne spiller lige nu".
+
 **Partyet selv kan ikke hentes.** Data API'et dækker spillere, kampe, hold,
 turneringer, ranglister og hubs — ingen parties. Og det interne web-API svarer
 404 på alle seks party-ruter der blev prøvet.

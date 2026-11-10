@@ -38,6 +38,10 @@ const matchCache = new TtlCache(Infinity, 50);
 const statsCache = new TtlCache(5 * 60_000, 200);
 const rankingCache = new TtlCache(10 * 60_000, 200);
 
+// Igangværende kampe ændrer sig hele tiden, men en byge af kommandoer i
+// chatten skal stadig dele ét kald.
+const liveCache = new TtlCache(30_000, 100);
+
 function describe(status) {
   switch (status) {
     case 401:
@@ -409,6 +413,34 @@ export function getTeam(teamId) {
 
     return { name: payload?.name ?? null, members };
   });
+}
+
+/**
+ * Spillerens hubs. Sammen med turneringerne er de de eneste steder en
+ * igangværende kamp kan findes: spillerens egen historik rummer kun
+ * afsluttede kampe — målt på en kamp der kørte imens.
+ */
+export function getPlayerHubs(playerId) {
+  return statsCache.wrap(`hubs:${playerId}`, async () => {
+    const payload = await request(`/players/${encodeURIComponent(playerId)}/hubs`,
+      { params: { limit: 20 } });
+
+    return (payload?.items ?? [])
+      .map((item) => ({ id: item?.hub_id ?? item?.id, name: item?.name ?? null }))
+      .filter((hub) => hub.id);
+  });
+}
+
+/**
+ * En hubs igangværende kampe.
+ *
+ * Kort levetid i cachen: en kamp der er i gang er netop noget der ændrer sig,
+ * og et svar fra ti minutter siden er værdiløst. Men lang nok til at en byge
+ * af !hold i chatten deler ét kald.
+ */
+export function getHubMatches(hubId, { type = 'ongoing', limit = 20 } = {}) {
+  return liveCache.wrap(`hub:${type}:${hubId}`, () =>
+    request(`/hubs/${encodeURIComponent(hubId)}/matches`, { params: { type, limit } }));
 }
 
 /** Spillerens hold. Nøglen til at finde dem i en ESEA-division. */

@@ -15,6 +15,9 @@ import {
   getRanking,
   getPlayerTeams,
   getTeam,
+  getPlayerHubs,
+  getHubMatches,
+  getChampionshipMatches,
   isFinished,
   isLive,
 } from './faceit.js';
@@ -423,16 +426,56 @@ export async function commandLastGame({ channel, argument, viewer }) {
  * garanti: en kamp der netop er startet kan mangle i historikken.
  */
 async function findLiveMatch(playerId) {
-  const history = await getHistory(playerId, { limit: 3 });
-  const live = history.find((item) => isLive(item.status));
-  if (!live?.match_id) return null;
+  // MÅLT: spillerens historik indeholder IKKE en kamp der er i gang. En kamp
+  // med status ONGOING stod ikke i deltagernes historik overhovedet, så den
+  // vej — som !hold og !lobby byggede på — kan aldrig virke.
+  //
+  // Tilbage er at spørge de steder spilleren hører til, om hvad de har kørende:
+  // hubs og de turneringer spillerens seneste kampe hørte til. Det dækker
+  // ESEA og hub-spil. En ren matchmaking-kamp hører ikke til noget af det, og
+  // den kan botten ikke finde — FACEIT udstiller ingen "hvad spiller denne
+  // spiller lige nu".
+  const [hubs, competitions] = await Promise.all([
+    getPlayerHubs(playerId).catch(() => []),
+    recentCompetitions(playerId).catch(() => []),
+  ]);
 
-  try {
-    return await getMatch(live.match_id);
-  } catch (error) {
-    logger.warn(`live kamp fejlede: ${error.message}`);
-    return null;
+  const sources = [
+    ...hubs.map((hub) => ({ kind: 'hub', id: hub.id, name: hub.name })),
+    ...competitions
+      .filter((c) => c.id && c.type === 'championship')
+      .map((c) => ({ kind: 'championship', id: c.id, name: c.name })),
+  ];
+
+  for (const source of sources) {
+    let payload;
+    try {
+      payload = source.kind === 'hub'
+        ? await getHubMatches(source.id)
+        : await getChampionshipMatches(source.id, { type: 'ongoing', limit: 20 });
+    } catch (error) {
+      logger.warn(`live i ${source.name ?? source.id}: ${error.message}`);
+      continue;
+    }
+
+    for (const item of payload?.items ?? []) {
+      if (!isLive(item.status)) continue;
+
+      const roster = Object.values(item.teams ?? {})
+        .flatMap((faction) => faction?.roster ?? faction?.players ?? []);
+
+      if (!roster.some((p) => (p?.player_id ?? p?.id) === playerId)) continue;
+
+      // Listen fra en hub er mager; kampens egen rute har hele opstillingen.
+      try {
+        return await getMatch(item.match_id ?? item.id);
+      } catch {
+        return item;
+      }
+    }
   }
+
+  return null;
 }
 
 /** Spillerens eget hold i en kamp, og de øvrige i den. */
