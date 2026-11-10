@@ -247,8 +247,14 @@ async function main() {
   // se den. Opsætningen bliver liggende, så en kanal der sættes tilbage
   // vender tilbage med sin liste i behold.
   const wanted = new Set(bootstrapChannels());
-  const dropped = channels.names().filter((name) => !wanted.has(name));
-  for (const name of dropped) logger.info(`forlader #${name} — ikke længere i TWITCH_CHANNELS`);
+  // "forlader" var forkert: botten joiner den slet ikke, og opsætningen
+  // bliver liggende med vilje, så en kanal der sættes tilbage kommer igen med
+  // sin spillerliste. Loggen skal sige hvad der sker, ikke hvad det lignede.
+  const skipped = channels.names().filter((name) => !wanted.has(name));
+  for (const name of skipped) {
+    logger.info(`springer #${name} over — ikke i TWITCH_CHANNELS`
+      + ' (opsætningen gemmes, så kanalen kan sættes tilbage)');
+  }
 
   const joined = channels.names().filter((name) => wanted.has(name));
   if (joined.length === 0) throw new Error('Ingen kanaler konfigureret — sæt TWITCH_CHANNELS');
