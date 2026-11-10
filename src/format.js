@@ -334,8 +334,13 @@ export function formatNextMatch({ nickname, match }) {
 export function formatTeam({ nickname, map, mates }) {
   // Kun den igangværende kamp. En afsluttet kamps opstilling er støj når
   // spørgsmålet er hvem der spiller nu.
+  //
+  // En kø-kamp kan botten ikke se — FACEIT udstiller intet "hvad spiller
+  // denne spiller lige nu", og en kø-kamp hører hverken til en hub eller en
+  // turnering. Svaret peger derfor videre, så det ikke ligner en blindgyde.
   if (!mates || mates.length === 0) {
-    return `${nickname} er ikke i en FACEIT-kamp lige nu`;
+    return `${nickname} er ikke i en FACEIT-kamp lige nu`
+      + `${SEP}prøv !eseahold for ESEA-truppen`;
   }
 
   const parts = [nickname];

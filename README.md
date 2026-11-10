@@ -95,7 +95,11 @@ turneringer de seneste kampe hørte til — om hvad de har kørende.
 
 Det dækker ESEA og hub-spil. En **ren matchmaking-kamp** hører ikke til nogen
 af delene, og den kan botten ikke finde: FACEIT udstiller intet "hvad spiller
-denne spiller lige nu".
+denne spiller lige nu". Målt på en kø-kamp der kørte: alle seks kilder —
+fem hubs og en turnering — svarede, og ingen af dem havde en kamp i gang.
+
+Derfor peger svaret videre til `!eseahold`, som viser ESEA-truppen uanset om
+der spilles lige nu. Ellers ville en kø-kamp se ud som en blindgyde.
 
 **Partyet selv kan ikke hentes.** Data API'et dækker spillere, kampe, hold,
 turneringer, ranglister og hubs — ingen parties. Og det interne web-API svarer

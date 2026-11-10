@@ -276,10 +276,12 @@ test('formatTeam viser medspillerne med level', async () => {
 test('formatTeam siger til når der ingen kamp er', async () => {
   const { formatTeam } = await import('../src/format.js');
 
-  assert.equal(
-    formatTeam({ nickname: 'Petsen', mates: [] }),
-    'Petsen er ikke i en FACEIT-kamp lige nu',
-  );
+  const message = formatTeam({ nickname: 'Petsen', mates: [] });
+
+  assert.ok(message.startsWith('Petsen er ikke i en FACEIT-kamp lige nu'), message);
+  // En kø-kamp er usynlig for botten, så svaret skal pege videre frem for at
+  // ligne en blindgyde.
+  assert.ok(message.includes('!eseahold'), message);
 });
 
 test('formatEseaTeam lister truppen', async () => {
