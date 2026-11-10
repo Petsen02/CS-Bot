@@ -70,7 +70,7 @@ betjene flere streamere uden at de ser hinandens spillere.
 | `!nextrank [nick]` | `PETSEN LVL9 1920 elo │ mangler 81 elo til LVL10 (ca 4 wins)` |
 | `!lastgame [nick]` | Fuld statistiklinje — se nedenfor |
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
-| `!hold` / `!team` `[nick]` | `Petsen │ Mirage │ vigg0 LVL10 · Rasmus LVL9 · Jonas LVL7` |
+| `!hold` / `!team` `[nick]` | `dewi │ Mirage │ vigg0 LVL10 · Rasmus LVL9 · Jonas LVL7` |
 | `!eseahold` / `!eseateam` `[nick]` | `vigg0 │ Elitemilijoet │ vigg0 · Rasmus · Jonas · Mikkel` |
 | `!top [nick]` | `PETSEN LVL10 2347 elo │ DK #12 │ EU #418` |
 | `!maps [nick]` | `PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)` |
@@ -83,6 +83,12 @@ betjene flere streamere uden at de ser hinandens spillere.
 
 `!hold` viser holdkammeraterne i den igangværende kamp. Spilleren selv
 udelades; man ved godt man er der, og pladsen er bedre brugt på de andre.
+
+Kan den igangværende kamp ikke findes — FACEIT ser ikke ud til at lægge
+uafsluttede kampe i spillerens historik — vises den **seneste** kamp i stedet,
+tydeligt mærket `sidste kamp (Mirage)`. Spiller man på en stack, er det de
+samme mennesker, og et forkert nu-svar ville være værre end et ærligt
+før-svar.
 
 **Partyet selv kan ikke hentes.** Data API'et dækker spillere, kampe, hold,
 turneringer, ranglister og hubs — ingen parties. Og det interne web-API svarer
