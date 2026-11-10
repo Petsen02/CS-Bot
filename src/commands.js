@@ -36,6 +36,7 @@ import {
   describeMatch,
   describeSchedule,
 } from './esea.js';
+import { fetchInternal, ongoingMatchesUrl, describeBody } from './internal.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
   SEP,
@@ -1042,6 +1043,14 @@ export async function commandLiveDebug({ channel, argument, viewer }) {
   parts.push(`kilder: ${search.hubs} hubs + ${search.competitions} turneringer`);
   parts.push(search.seen.length ? `ongoing: ${search.seen.join(', ')}` : 'ingen kilder');
   parts.push(`hende i en af dem: ${search.foundPlayer ? 'JA' : 'nej'}`);
+
+  // Sidens egen rute til "hvilken kamp er spilleren i nu". Det dokumenterede
+  // API kan ikke svare på det for en kø-kamp; om denne kan, uden cookies og
+  // uden at udgive sig for en browser, er stadig umålt.
+  const internal = await fetchInternal(ongoingMatchesUrl(player.playerId));
+  parts.push(`internt: ${internal.status} ${internal.status === 200
+    ? describeBody(internal.body)
+    : internal.hint}`);
 
   return parts.join(SEP);
 }
