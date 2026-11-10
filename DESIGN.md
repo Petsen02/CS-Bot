@@ -443,6 +443,22 @@ botten ikke se`. Ordlyden er bevidst: botten *kan* ikke vide om spilleren er
 i en kø-kamp, så "er ikke i en FACEIT-kamp" ville påstå mere end den ved.
 Den viser heller ikke noget fra sidste kamp som om det var den igangværende.
 
+### Kø-dataen findes — adgangen er rollebaseret
+
+FACEIT's dokumentation siger om Queues-ruterne: *"Available only for game
+developers and queue owners (organizers)."*
+
+Det ændrer konklusionen ovenfor på ét punkt. Kø-dataen er ikke fraværende fra
+API'et; den er forbeholdt den der ejer køen. "Europe 5v5 Queue" ejes af FACEIT
+selv, så den er uden for rækkevidde uanset hvad vi finder på.
+
+Men **ejer man en hub, ejer man dens kø**. `!csbothub` måler det: den prøver
+`/hubs/{id}/queues` på hver af spillerens hubs og rapporterer statuskoden. En
+403 betyder "ikke ejer" og er et lige så gyldigt svar som en 200.
+
+Det er endnu en grund til at hub-vejen er den rigtige: den er ikke en omvej
+uden om en begrænsning, den er siden af hegnet hvor adgangen findes.
+
 Den eneste kendte vej til kø-kampe er en rigtig browser med en indlogget
 FACEIT-session på serveren. Det ville kræve at dine kontocookies lå på
 serveren, det ville gå i stykker ved enhver ændring af siden, og det er netop

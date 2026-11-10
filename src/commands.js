@@ -16,6 +16,7 @@ import {
   getPlayerTeams,
   getTeam,
   getPlayerHubs,
+  probeHubQueues,
   getHubMatches,
   getChampionshipMatches,
   isFinished,
@@ -1144,6 +1145,22 @@ export async function commandLiveDebug({ channel, argument, viewer }) {
   parts.push(`hende i en af dem: ${search.foundPlayer ? 'JA' : 'nej'}`);
 
   return parts.join(SEP);
+}
+
+/**
+ * Om nøglen ejer nogen af spillerens hubs.
+ *
+ * Queues-ruterne er forbeholdt "game developers and queue owners". Ejer
+ * kanalen en hub, gælder det den — og så kan !hold få kø-data for de kampe
+ * der spilles der. En 403 er svaret "ikke ejer" og lige så nyttigt som en 200.
+ */
+export async function commandHubDebug({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
+  const lines = await probeHubQueues(player.playerId);
+
+  if (lines.length === 0) return `${player.nickname} er ikke i nogen hubs`;
+
+  return [player.nickname, ...lines].join(SEP);
 }
 
 /**

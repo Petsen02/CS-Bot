@@ -473,3 +473,41 @@ export function getLeaderboard(region, { limit = 1, offset = 0, country } = {}) 
  * Diagnostik, ikke en kommando brugerne skal kende. Hver rute fanges for sig,
  * så en 404 på den ene ikke skjuler et svar fra den anden.
  */
+
+/**
+ * Om nøglen har adgang til en hubs kø-ruter.
+ *
+ * FACEIT's dokumentation siger om Queues: "Available only for game developers
+ * and queue owners (organizers)". Kø-dataen findes altså officielt — adgangen
+ * er rollebaseret, ikke lukket. "Europe 5v5 Queue" ejes af FACEIT selv og er
+ * uden for rækkevidde, men ejer man en hub, er man ejer af dens kø.
+ *
+ * Diagnostik. Den prøver ruterne af og rapporterer statuskoder; en 403 er et
+ * lige så gyldigt resultat som en 200, for den siger "du er ikke ejer".
+ */
+export async function probeHubQueues(playerId) {
+  const hubs = await getPlayerHubs(playerId);
+  const lines = [];
+
+  for (const hub of hubs.slice(0, 6)) {
+    const codes = [];
+
+    for (const [label, path] of [
+      ['queues', `/hubs/${encodeURIComponent(hub.id)}/queues`],
+      ['stats', `/hubs/${encodeURIComponent(hub.id)}/stats`],
+      ['members', `/hubs/${encodeURIComponent(hub.id)}/members`],
+    ]) {
+      try {
+        const payload = await request(path, { retries: 0, params: { limit: 5 } });
+        const items = Array.isArray(payload?.items) ? payload.items : null;
+        codes.push(`${label} 200${items ? `(${items.length})` : ''}`);
+      } catch (error) {
+        codes.push(`${label} ${error?.status ?? 0}`);
+      }
+    }
+
+    lines.push(`${hub.name ?? hub.id.slice(0, 6)}: ${codes.join(' ')}`);
+  }
+
+  return lines;
+}
