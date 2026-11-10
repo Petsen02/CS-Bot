@@ -414,6 +414,22 @@ npm start
 
 En API-nøgle oprettes i FACEIT's Developer Portal under App Studio.
 
+### Når `.env` ser ud til at blive ignoreret
+
+Et spilpanel som Pelican sætter en **miljøvariabel for hver variabel i ægget**,
+også dem der står tomme — og en rigtig miljøvariabel slår `.env`. Du kan rette
+`.env`, genstarte, og se botten bruge panelets værdi uden en forklaring.
+
+To ting hjælper nu: et tomt felt i panelet tæller ikke som et valg, så `.env`
+udfylder det. Og er der en reel konflikt, siger opstarten det:
+
+```
+værtens miljø slår .env for: TWITCH_CHANNELS — ret dem i panelets Startup-fane
+kanaler (3): petsen02, dewi, vigg0
+```
+
+Ser du den første linje, skal kanalen rettes i **panelet**, ikke i `.env`.
+
 `.env.example` har fem felter øverst der skal udfyldes. Alt derunder står
 udkommenteret med den værdi koden allerede bruger — fjern havelågen kun for
 det du vil ændre. `FACEIT_LIMIT_PER_SECOND` og `FACEIT_LIMIT_PER_TEN_MINUTES`

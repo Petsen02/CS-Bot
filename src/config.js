@@ -5,15 +5,26 @@ import { dirname, join } from 'node:path';
 export const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
+ * Nøgler hvor værtens miljø slog .env-filen. Tom når der ingen konflikt var.
+ *
+ * Et spilpanel som Pelican injicerer en miljøvariabel for HVER variabel i
+ * æggets opsætning, også dem man aldrig har rørt. Står en nøgle der, vinder
+ * den over .env — og det skete i stilhed, så man kunne rette .env, genstarte,
+ * og se botten bruge panelets værdi uden en forklaring. Opstarten siger det
+ * nu højt.
+ */
+export const envOverrides = [];
+
+/**
  * Minimal .env-indlæser. Undgår en dotenv-afhængighed og virker på enhver
  * Node >= 18, i modsætning til process.loadEnvFile() der kræver 20.12+.
  */
-function loadEnvFile() {
+export function loadEnvFile(file = join(projectRoot, '.env'), env = process.env) {
   let raw;
   try {
-    raw = readFileSync(join(projectRoot, '.env'), 'utf8');
+    raw = readFileSync(file, 'utf8');
   } catch {
-    return; // Ingen .env er fint når værten sætter rigtige miljøvariabler.
+    return envOverrides; // Ingen .env er fint når værten sætter miljøvariabler.
   }
 
   for (const line of raw.split('\n')) {
@@ -30,9 +41,20 @@ function loadEnvFile() {
       value = value.slice(1, -1);
     }
 
-    // Rigtige miljøvariabler vinder, så værtens opsætning kan overskrive filen.
-    if (!(key in process.env)) process.env[key] = value;
+    // Værtens miljø vinder — men kun når det faktisk siger noget. Et tomt
+    // felt i et panel er ikke et valg, det er en variabel ingen har udfyldt,
+    // og den skal ikke kunne slette en linje man selv har skrevet i .env.
+    const hostValue = env[key];
+
+    if (hostValue === undefined || hostValue === '') {
+      env[key] = value;
+      continue;
+    }
+
+    if (hostValue !== value) envOverrides.push(key);
   }
+
+  return envOverrides;
 }
 
 loadEnvFile();

@@ -9,6 +9,7 @@ import {
   seedPlayers,
   seedMain,
   sanitizeArgument,
+  envOverrides,
 } from './config.js';
 import { channels, normalizeChannel } from './channels.js';
 import { TwitchAuth } from './twitchAuth.js';
@@ -216,6 +217,14 @@ async function main() {
 
   const revision = gitRevision();
   logger.info(`version: ${revision ?? 'ukendt'}`);
+
+  // Et panel som Pelican sætter en miljøvariabel for hver variabel i ægget,
+  // og den slår .env. Uden den her linje kan man rette .env, genstarte, og
+  // undre sig over at intet skete.
+  if (envOverrides.length > 0) {
+    logger.warn(`værtens miljø slår .env for: ${envOverrides.join(', ')}`
+      + ' — ret dem i panelets Startup-fane, ikke i .env');
+  }
   logger.info(`logs: ${logPaths.logs}`);
   logger.info(`crash reports: ${logPaths.crashes}`);
 
@@ -243,6 +252,8 @@ async function main() {
 
   const joined = channels.names().filter((name) => wanted.has(name));
   if (joined.length === 0) throw new Error('Ingen kanaler konfigureret — sæt TWITCH_CHANNELS');
+
+  logger.info(`kanaler (${joined.length}): ${joined.join(', ')}`);
 
   const client = new tmi.Client({
     options: { debug: false, skipUpdatingEmotesets: true },
