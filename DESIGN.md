@@ -415,7 +415,9 @@ ikke svare på for en almindelig kø-kamp, og det er målt i fire trin:
    browser ville måske være sluppet igennem. Det er ikke en vej vi går:
    botten melder sig som det den er, og et afslag er et svar.
 5. **Matchmaking har ingen kampliste.** Hubs og turneringer har begge en
-   `/matches?type=ongoing`; en matchmaking har ikke. Målt med `!csbotqueue`:
+   `/matches?type=ongoing`; en matchmaking har ikke. Målt fra serveren med en
+   midlertidig diagnostik, siden fjernet igen — tabellen er det der blev
+   tilbage af den:
 
    | Rute | Svar |
    |---|---|
