@@ -511,3 +511,61 @@ export async function probeHubQueues(playerId) {
 
   return lines;
 }
+
+/**
+ * Hvad en matchmaking faktisk bærer.
+ *
+ * Dokumentationen viser et `queues`-felt i svaret. En tidligere probe
+ * printede kun de fire første nøgler og kasserede resten, og konkluderede
+ * derfor for hurtigt at en matchmaking ikke fører nogen steder hen. Den her
+ * viser hele nøglelisten og køernes id'er, og prøver derefter kø-ruterne.
+ */
+export async function probeMatchmaking(playerId) {
+  const history = await getHistory(playerId, { limit: 20 });
+  const queueGame = history.find(
+    (item) => String(item.competition_type ?? '').toLowerCase() === 'matchmaking',
+  );
+
+  if (!queueGame?.competition_id) return ['ingen kø-kamp i historikken'];
+
+  const lines = [];
+  let payload;
+
+  try {
+    payload = await request(`/matchmakings/${encodeURIComponent(queueGame.competition_id)}`,
+      { retries: 0 });
+  } catch (error) {
+    return [`matchmaking ${error?.status ?? 0}`];
+  }
+
+  // HELE nøglelisten, ikke de første fire.
+  lines.push(`felter: ${Object.keys(payload ?? {}).join(',') || 'ingen'}`);
+
+  const queues = Array.isArray(payload?.queues) ? payload.queues : [];
+  lines.push(`queues: ${queues.length}`);
+
+  for (const queue of queues.slice(0, 2)) {
+    const queueId = queue?.id ?? queue?.queue_id ?? null;
+    if (!queueId) {
+      lines.push(`kø uden id: ${Object.keys(queue ?? {}).slice(0, 5).join(',')}`);
+      continue;
+    }
+
+    const codes = [];
+    for (const [label, path] of [
+      ['q', `/queues/${encodeURIComponent(queueId)}`],
+      ['q/queue', `/queues/${encodeURIComponent(queueId)}/queue`],
+    ]) {
+      try {
+        const body = await request(path, { retries: 0 });
+        codes.push(`${label} 200 ${Object.keys(body ?? {}).slice(0, 5).join(',')}`);
+      } catch (error) {
+        codes.push(`${label} ${error?.status ?? 0}`);
+      }
+    }
+
+    lines.push(`${queue?.name ?? queueId.slice(0, 8)}: ${codes.join(' ')}`);
+  }
+
+  return lines;
+}

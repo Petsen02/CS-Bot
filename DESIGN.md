@@ -424,7 +424,7 @@ ikke svare på for en almindelig kø-kamp, og det er målt i fire trin:
 
    | Rute | Svar |
    |---|---|
-   | `/matchmakings/{id}` | `200` — `id,name,game,region`, ingen kampe |
+   | `/matchmakings/{id}` | `200` — se nedenfor |
    | `/matchmakings/{id}/matches` | `404` |
    | `/matchmakings/{id}/matches?type=ongoing` | `404` |
    | `/players/{id}/matches` | `404` |
@@ -442,6 +442,21 @@ det der blev spurgt om. Tilbage står: kampe i en **hub** eller en
 botten ikke se`. Ordlyden er bevidst: botten *kan* ikke vide om spilleren er
 i en kø-kamp, så "er ikke i en FACEIT-kamp" ville påstå mere end den ved.
 Den viser heller ikke noget fra sidste kamp som om det var den igangværende.
+
+### Rettelse: den første matchmaking-måling var afkortet
+
+Tabellen ovenfor sagde først at `/matchmakings/{id}` svarer
+`id,name,game,region` og "ingen kampe". Det var en fejl i målingen, ikke i
+API'et: proben printede kun de **fire første** nøgler i svaret og kasserede
+resten.
+
+Dokumentationen viser at svaret også bærer `league_id`, `icon`,
+`long_description`, `short_description` — og `queues`. Et kø-id er netop det
+der kunne føre videre, og det blev skåret væk af vores egen kode.
+
+`!csbotqueue` printer nu hele nøglelisten og prøver `/queues/{id}` for hver
+kø. Lektien står her frem for i en commit-besked: **en probe der forkorter
+sit svar kan konkludere det modsatte af sandheden.**
 
 ### Kø-dataen findes — adgangen er rollebaseret
 

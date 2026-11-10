@@ -32,6 +32,7 @@ import {
   commandEseaDebug,
   commandLiveDebug,
   commandHubDebug,
+  commandQueueDebug,
   commandLeave,
   setLeaveHandler,
   commandCommands,
@@ -95,6 +96,7 @@ const handlers = new Map([
   // Diagnose for !hold og elo-tallet i !lastgame.
   [`${ADMIN}live`, { level: 'mod', run: commandLiveDebug }],
   [`${ADMIN}hub`, { level: 'mod', run: commandHubDebug }],
+  [`${ADMIN}queue`, { level: 'mod', run: commandQueueDebug }],
   [`${ADMIN}leave`, { level: 'everyone', run: commandLeave }],
 ]);
 
