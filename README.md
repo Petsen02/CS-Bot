@@ -66,7 +66,7 @@ betjene flere streamere uden at de ser hinandens spillere.
 |---|---|
 | `!rank [nick]` | `PETSEN LVL10 2347 elo` — top 1000 i regionen får også `(Rank#412)` |
 | `!ranks` | Kanalens liste, nummereret, højeste elo først |
-| `!session` / `!gains` `[nick]` | `PETSEN: 3W 2L (+47 elo) 🟩🟩🟥🟩🟥` for i dag |
+| `!session` / `!gains` `[nick]` | `vigg0: 3W 2L (+47 elo) 🟩🟩🟥🟩🟥` for i dag |
 | `!nextrank [nick]` | `PETSEN LVL9 1920 elo │ mangler 81 elo til LVL10 (ca 4 wins)` |
 | `!lastgame [nick]` | Fuld statistiklinje — se nedenfor |
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
@@ -322,8 +322,20 @@ Det har to konsekvenser, som svarene er ærlige om:
 - **Kun spillere på kanalens liste trackes.** Spørger du om en tilfældig
   spiller, kan botten vise rank og statistik, men ikke elo-ændringer.
 - **Falder to kampe i samme målevindue**, kan ændringen ikke fordeles mellem
-  dem uden at gætte. Kampene bogføres så med resultat men uden elo, og
-  `!session` skriver `[3/5 målt]` frem for et forkert totaltal.
+  dem uden at gætte. Kampene bogføres så med resultat men uden elo.
+
+`!session` lægger ikke enkeltkampe sammen når den kan undgå det. Dagens
+**baseline** — elotallet ved dagens første poll — trækkes fra det nuværende,
+og det forbliver rigtigt selv når enkelte kampe blev misset, fx fordi botten
+var nede da de sluttede.
+
+Baselinen bruges kun hvis den blev taget **før dagens første kamp**. En
+baseline fra midt i en session ville i stilhed slette alt der kom før den, så
+i det tilfælde falder den tilbage til de målte kampe og skriver `[3/5 målt]`
+frem for et forkert totaltal.
+
+Er intet målt endnu, står der `ingen elo-data endnu │ måler fra næste kamp` i
+stedet for et tomt felt. Et tomt felt ligner at kommandoen er i stykker.
 
 Målingerne er derfor det eneste der ikke kan genskabes fra API'et.
 

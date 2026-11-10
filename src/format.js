@@ -63,14 +63,20 @@ export function formatSession({ nickname, results, eloTotal, measuredCount }) {
   const losses = results.length - wins;
   const squares = results.map((won) => (won ? '🟩' : '🟥')).join('');
 
-  const elo = measuredCount > 0 ? ` (${formatEloDelta(eloTotal)} elo)` : '';
+  // Uden en eneste måling er der ingen elo at vise, og et tomt felt ligner at
+  // dagen gik i nul. Sig det i stedet — og sig at der måles fra næste kamp,
+  // så det ikke ligner at kommandoen er i stykker.
+  if (measuredCount === 0) {
+    return `${nickname}: ${wins}W ${losses}L${SEP}ingen elo-data endnu`
+      + `${SEP}måler fra næste kamp ${squares}`;
+  }
 
   // Når kun nogle kampe er målt, skal det ikke se ud som dagens fulde facit.
-  const partial = measuredCount > 0 && measuredCount < results.length
+  const partial = measuredCount < results.length
     ? ` [${measuredCount}/${results.length} målt]`
     : '';
 
-  return `${nickname}: ${wins}W ${losses}L${elo}${partial} ${squares}`;
+  return `${nickname}: ${wins}W ${losses}L (${formatEloDelta(eloTotal)} elo)${partial} ${squares}`;
 }
 
 /** "PETSEN LEVEL9: 1920 elo │ mangler 81 elo til LEVEL10 (ca 4 wins)" */

@@ -210,6 +210,30 @@ export async function commandSession({ channel, argument, viewer }) {
     }
   }
 
+  // Dagsbaselinen slår enkeltkampene, når den dækker hele dagen.
+  //
+  // At lægge målte kampe sammen er kun rigtigt hvis hver eneste blev målt —
+  // og en kamp der sluttede mens botten var nede, blev den ikke. En baseline
+  // sammenligner dagens start med nu, hvilket forbliver rigtigt selv når
+  // enkelte kampe mangler.
+  //
+  // Men kun hvis den blev taget FØR dagens første kamp. En baseline fra midt
+  // i en session ville i stilhed slette alt der kom før den.
+  const baseline = store.getBaseline(player.playerId, localDateKey(config.timezone));
+  const snapshot = store.getSnapshot(player.playerId);
+
+  const firstGameAt = ordered.length > 0
+    ? (ordered[0].started_at ?? ordered[0].finished_at ?? 0) * 1000
+    : null;
+
+  const baselineCoversDay = baseline?.at != null
+    && (firstGameAt === null || baseline.at <= firstGameAt);
+
+  if (baseline && snapshot && baselineCoversDay && Number.isFinite(snapshot.elo)) {
+    eloTotal = snapshot.elo - baseline.elo;
+    measuredCount = results.length;
+  }
+
   return formatSession({
     nickname: player.nickname,
     results,

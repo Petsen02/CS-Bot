@@ -61,16 +61,21 @@ test('formatSession viser W/L, elo og firkanter', () => {
   );
 });
 
-test('formatSession udelader elo helt når intet blev målt', () => {
-  // Et "0" her ville læses som "du gik i nul", ikke "vi ved det ikke".
+test('formatSession siger det ligeud når intet blev målt', () => {
+  // Et "0" ville læses som "du gik i nul", og et tomt felt ligner at
+  // kommandoen er i stykker. Begge dele er værre end at sige det.
   const message = formatSession({
     nickname: 'PETSEN',
     results: [true, false],
     eloTotal: 0,
     measuredCount: 0,
   });
-  assert.equal(message, 'PETSEN: 1W 1L 🟩🟥');
-  assert.ok(!message.includes('elo'));
+
+  assert.ok(message.includes('1W 1L'), message);
+  assert.ok(message.includes('ingen elo-data endnu'), message);
+  assert.ok(message.includes('måler fra næste kamp'), message);
+  assert.ok(message.includes('🟩🟥'), message);
+  assert.ok(!/[+-]?\d+ elo/.test(message), `måtte ikke vise et elo-tal: ${message}`);
 });
 
 test('formatSession markerer delvis måling', () => {
@@ -296,4 +301,16 @@ test('formatEseaTeam siger til uden hold', async () => {
     formatEseaTeam({ nickname: 'vigg0', members: [] }),
     'vigg0 er ikke på et ESEA-hold lige nu',
   );
+});
+
+test('formatSession viser dagens samlede elo når alt er målt', () => {
+  const message = formatSession({
+    nickname: 'vigg0',
+    results: [true, true, false, true, false],
+    eloTotal: 47,
+    measuredCount: 5,
+  });
+
+  assert.equal(message, 'vigg0: 3W 2L (+47 elo) 🟩🟩🟥🟩🟥');
+  assert.ok(!message.includes('målt]'), 'ingen delvis-markering når alt er målt');
 });
