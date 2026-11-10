@@ -196,6 +196,7 @@ export const config = {
    * bots i samme chat — LoL-botten i nabokanalen bruger !old til det samme.
    */
   adminPrefix: (process.env.ADMIN_PREFIX || 'csbot').trim().toLowerCase(),
+  botOwners: botOwners(),
   // Navnet på kanalens 7TV-emotes: LVL1 … LVL10. Indstilleligt, fordi det er
   // en egenskab ved emote-sættet og ikke ved botten.
   rankEmotePrefix: (process.env.RANK_EMOTE_PREFIX || 'LVL').trim(),
@@ -210,6 +211,22 @@ export const config = {
   idlePollMs: seconds('IDLE_POLL_SECONDS', 600),
   activeWindowMs: seconds('ACTIVE_WINDOW_MINUTES', 60) * 60,
 };
+
+/**
+ * Twitch-logins der betjener botten, uanset hvilken kanal de står i.
+ *
+ * De kan køre enhver kommando i enhver kanal uden først at være moderator
+ * dér — ellers kan botten ikke styres i en kanal man ikke selv ejer. Det er
+ * adgangslisten: den ændres her, ikke i koden.
+ */
+export function botOwners() {
+  return new Set(
+    (process.env.BOT_OWNERS || '')
+      .split(',')
+      .map((name) => name.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
 
 export function bootstrapChannels() {
   return (process.env.TWITCH_CHANNELS || '')

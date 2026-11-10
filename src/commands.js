@@ -1,6 +1,7 @@
 import { config, parsePlayerRef } from './config.js';
 import { gitRevision } from './version.js';
-import { channels } from './channels.js';
+import { writePlayerReport } from './report.js';
+import { channels, normalizeChannel } from './channels.js';
 import { store } from './store.js';
 import { logger } from './logger.js';
 import {
@@ -61,7 +62,7 @@ export { truncate };
  * og det er trackingen der giver elo-historik. Kommandoer der kræver historik
  * siger det tydeligt frem for at svare med et tomt resultat.
  */
-async function resolveTarget(channelName, argument) {
+async function resolveTarget(channelName, argument, viewer = null) {
   if (argument) {
     const ref = parsePlayerRef(argument);
     if (!ref) {
@@ -73,6 +74,8 @@ async function resolveTarget(channelName, argument) {
     if (player.playerId && player.nickname) {
       channels.renamePlayer(player.playerId, player.nickname);
     }
+
+    noteLookup(player, viewer);
     return { player, tracked: false };
   }
 
@@ -80,7 +83,7 @@ async function resolveTarget(channelName, argument) {
   if (!stored) {
     throw new FaceitError(
       'bad_input',
-      `Der er ingen spillere på listen endnu — en mod kan tilføje med !${config.adminPrefix}addplayer`,
+      `Der er ingen spillere på listen endnu — skriv fx !rank <dit FACEIT-nick>`,
     );
   }
 
@@ -88,6 +91,27 @@ async function resolveTarget(channelName, argument) {
   if (player.nickname) channels.renamePlayer(player.playerId, player.nickname);
 
   return { player, tracked: true };
+}
+
+/**
+ * Sætter den opslåede spiller på watch-listen og noterer hvem der spurgte.
+ *
+ * Det er dét der gør at folk kan få deres egen konto med uden at nogen
+ * tilføjer den i hånden: første gang en seer skriver `!rank <sit nick>`,
+ * måles kontoen fra da af.
+ *
+ * Kun for et navn nogen har skrevet. Uden argument svarer kommandoerne om
+ * kanalens main, og at binde en seer til streamerens konto fordi de kørte et
+ * bart !rank ville være et værre link end slet ingen.
+ *
+ * Filen skrives her frem for at vente på næste pollrunde: et link der først
+ * dukker op ti minutter senere ligner at det ikke virkede.
+ */
+function noteLookup(player, viewer) {
+  if (store.watch(player, { twitch: viewer ?? null }) === 'current') return;
+
+  store.save();
+  writePlayerReport();
 }
 
 /** Placeringen, men kun når den er værd at hente. */
@@ -108,8 +132,8 @@ async function positionFor(channelName, player) {
   }
 }
 
-export async function commandRank({ channel, argument }) {
-  const { player } = await resolveTarget(channel, argument);
+export async function commandRank({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
   const position = await positionFor(channel, player);
 
   return formatPlayerRank({ ...player, position });
@@ -142,8 +166,8 @@ export async function commandRanks({ channel }) {
   return formatRanksMessage(players);
 }
 
-export async function commandSession({ channel, argument }) {
-  const { player, tracked } = await resolveTarget(channel, argument);
+export async function commandSession({ channel, argument, viewer }) {
+  const { player, tracked } = await resolveTarget(channel, argument, viewer);
 
   const dayStart = startOfLocalDay(config.timezone);
   const measured = store.getMatchesBetween(player.playerId, dayStart);
@@ -218,8 +242,8 @@ export function didWin(item, playerId) {
   return null;
 }
 
-export async function commandNextRank({ channel, argument }) {
-  const { player } = await resolveTarget(channel, argument);
+export async function commandNextRank({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
 
   const next = nextLevel(player.elo);
   const average = store.getAverageEloGain(player.playerId);
@@ -335,8 +359,8 @@ function add(a, b) {
   return (Number.isFinite(a) ? a : 0) + (Number.isFinite(b) ? b : 0);
 }
 
-export async function commandLastGame({ channel, argument }) {
-  const { player } = await resolveTarget(channel, argument);
+export async function commandLastGame({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
 
   const history = await getHistory(player.playerId, { limit: 5 });
   const finished = history.find((item) => isFinished(item.status));
@@ -409,8 +433,8 @@ function factionsOf(match, playerId) {
   return { own: own[0] ?? null, others };
 }
 
-export async function commandLobby({ channel, argument }) {
-  const { player } = await resolveTarget(channel, argument);
+export async function commandLobby({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
 
   const match = await findLiveMatch(player.playerId);
   if (!match) return formatLobby({ nickname: player.nickname, teams: [] });
@@ -443,8 +467,8 @@ export async function commandLobby({ channel, argument }) {
  * API'et, men har man køet sammen, er partyet netop det hold man står på — så
  * i praksis svarer det på det samme.
  */
-export async function commandTeam({ channel, argument }) {
-  const { player } = await resolveTarget(channel, argument);
+export async function commandTeam({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
 
   const match = await findLiveMatch(player.playerId);
   if (!match) return formatTeam({ nickname: player.nickname, mates: [] });
@@ -467,8 +491,8 @@ export async function commandTeam({ channel, argument }) {
  * Holdet findes samme vej som !esea: gennem de turneringer spillerens egne
  * kampe hører til, fordi den kørende sæson ikke findes andre steder.
  */
-export async function commandEseaTeam({ channel, argument }) {
-  const { player } = await resolveTarget(channel, argument);
+export async function commandEseaTeam({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
 
   const [teams, played] = await Promise.all([
     getPlayerTeams(player.playerId),
@@ -504,8 +528,8 @@ export async function commandEseaTeam({ channel, argument }) {
  * er en del af stien — så der findes ingen verdensplacering at vise, og
  * svaret skriver regionen ved navn frem for at kalde den "verden".
  */
-export async function commandTop({ channel, argument }) {
-  const { player } = await resolveTarget(channel, argument);
+export async function commandTop({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
   const { region, country } = channels.get(channel);
 
   const [countryResult, regionResult] = await Promise.allSettled([
@@ -533,8 +557,8 @@ export async function commandTop({ channel, argument }) {
  * Gratis ekstra i forhold til LoL-botten: FACEIT leverer segmenter pr. map i
  * samme kald som livstidsstatistikken, hvor Riot ikke har noget tilsvarende.
  */
-export async function commandMaps({ channel, argument }) {
-  const { player } = await resolveTarget(channel, argument);
+export async function commandMaps({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
 
   const payload = await getPlayerStats(player.playerId);
   const segments = (payload?.segments ?? []).filter(
@@ -571,8 +595,8 @@ export async function commandMaps({ channel, argument }) {
  * stillinger caches en halv time, så kommandoen koster normalt nul kald: en
  * division spiller en kamp om ugen.
  */
-export async function commandEsea({ channel, argument }) {
-  const { player } = await resolveTarget(channel, argument);
+export async function commandEsea({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
   const { region } = channels.get(channel);
 
   const [teams, played] = await Promise.all([
@@ -623,8 +647,8 @@ export async function commandEsea({ channel, argument }) {
  * turneringen selv med `type=upcoming`. Turneringen findes samme vej som
  * !esea: gennem de kampe spilleren allerede har spillet.
  */
-export async function commandNextEsea({ channel, argument }) {
-  const { player } = await resolveTarget(channel, argument);
+export async function commandNextEsea({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
 
   const [teams, played] = await Promise.all([
     getPlayerTeams(player.playerId),
@@ -780,7 +804,7 @@ export function commandPlayerList({ channel }) {
   return `${region}/${country}${SEP}${formatNicknames(players)}`;
 }
 
-export async function commandAddPlayer({ channel, argument }) {
+export async function commandAddPlayer({ channel, argument, viewer }) {
   const ref = parsePlayerRef(argument);
   if (!ref) return `Brug: !${config.adminPrefix}addplayer <FACEIT-nick eller SteamID64>`;
 
@@ -794,7 +818,7 @@ export async function commandAddPlayer({ channel, argument }) {
     : `${player.nickname} tilføjet`;
 }
 
-export function commandRemovePlayer({ channel, argument }) {
+export function commandRemovePlayer({ channel, argument, viewer }) {
   const ref = parsePlayerRef(argument);
   if (!ref || ref.kind !== 'nickname') return `Brug: !${config.adminPrefix}removeplayer <FACEIT-nick>`;
 
@@ -804,7 +828,7 @@ export function commandRemovePlayer({ channel, argument }) {
     : `${ref.value} fjernet`;
 }
 
-export async function commandAddMain({ channel, argument }) {
+export async function commandAddMain({ channel, argument, viewer }) {
   const ref = parsePlayerRef(argument);
   if (!ref) return `Brug: !${config.adminPrefix}addmain <FACEIT-nick eller SteamID64>`;
 
@@ -818,7 +842,7 @@ export async function commandAddMain({ channel, argument }) {
   return `${player.nickname} er nu main`;
 }
 
-export function commandRemoveMain({ channel, argument }) {
+export function commandRemoveMain({ channel, argument, viewer }) {
   const ref = parsePlayerRef(argument);
   if (!ref || ref.kind !== 'nickname') return `Brug: !${config.adminPrefix}removemain <FACEIT-nick>`;
 
@@ -828,7 +852,41 @@ export function commandRemoveMain({ channel, argument }) {
     : `${ref.value} er ikke længere main`;
 }
 
-export function commandRegion({ channel, argument }) {
+/**
+ * Får botten til at forlade en kanal.
+ *
+ * Tjekker sine egne rettigheder frem for at stå på 'mod'-niveau: i kanalen
+ * selv må broadcasteren det, og en operatør fra BOT_OWNERS må det hvor som
+ * helst — også for en anden kanal end den de står i. Ellers kan botten ikke
+ * fjernes fra en kanal hvis ejer er holdt op med at bruge den.
+ */
+let partChannel = null;
+
+export function setLeaveHandler(handler) {
+  partChannel = handler;
+}
+
+export function commandLeave({ channel, argument, viewer, tags }) {
+  const target = argument ? normalizeChannel(argument) : channel;
+  const owner = config.botOwners.has(String(viewer ?? '').toLowerCase());
+
+  // En anden kanal end sin egen kræver operatør. Et tomt svar betyder
+  // "ikke din at køre" og ignoreres i stilhed, som de øvrige rettighedstjek.
+  if (target !== channel && !owner) return '';
+
+  if (!owner) {
+    const broadcaster = tags?.badges?.broadcaster === '1'
+      || String(tags?.username ?? '').toLowerCase() === channel;
+    if (!broadcaster) return '';
+  }
+
+  if (!channels.names().includes(target)) return `Botten er ikke i #${target}`;
+
+  partChannel?.(target);
+  return `Forlader #${target} — tilføj kanalen i TWITCH_CHANNELS for at få den tilbage`;
+}
+
+export function commandRegion({ channel, argument, viewer }) {
   const current = channels.get(channel).region;
 
   if (!argument) {
@@ -842,7 +900,7 @@ export function commandRegion({ channel, argument }) {
   return `Region sat til ${channels.get(channel).region}`;
 }
 
-export function commandCountry({ channel, argument }) {
+export function commandCountry({ channel, argument, viewer }) {
   const current = channels.get(channel).country;
 
   if (!argument) return `Land: ${current}${SEP}brug en landekode som DK, SE, NO`;

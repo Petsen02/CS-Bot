@@ -30,6 +30,8 @@ import {
   commandEsea,
   commandNextEsea,
   commandEseaDebug,
+  commandLeave,
+  setLeaveHandler,
   commandCommands,
   commandPlayerList,
   commandAddPlayer,
@@ -87,6 +89,8 @@ const handlers = new Map([
   [`${ADMIN}country`, { level: 'mod', run: commandCountry }],
   // Diagnose i chatten, så fejlsøgning ikke kræver en terminal.
   [`${ADMIN}esea`, { level: 'mod', run: commandEseaDebug }],
+  // Tjekker selv: broadcaster her, operatør hvor som helst.
+  [`${ADMIN}leave`, { level: 'everyone', run: commandLeave }],
 ]);
 
 /**
@@ -141,6 +145,10 @@ export function explain(error) {
 
 export function permitted(level, tags, channel) {
   if (level === 'everyone') return true;
+
+  // Operatører står i BOT_OWNERS og slipper igennem overalt, så botten kan
+  // styres i en kanal uden først at blive gjort til moderator dér.
+  if (config.botOwners.has((tags.username ?? '').toLowerCase())) return true;
 
   const isBroadcaster =
     tags.badges?.broadcaster === '1' || tags.username === normalizeChannel(channel);
@@ -222,7 +230,15 @@ async function main() {
 
   await bootstrap();
 
-  const joined = channels.names();
+  // .env er den fulde liste, ikke en startliste: en kanal der er fjernet
+  // derfra forlades her, frem for at hobe sig op i data-filen hvor ingen kan
+  // se den. Opsætningen bliver liggende, så en kanal der sættes tilbage
+  // vender tilbage med sin liste i behold.
+  const wanted = new Set(bootstrapChannels());
+  const dropped = channels.names().filter((name) => !wanted.has(name));
+  for (const name of dropped) logger.info(`forlader #${name} — ikke længere i TWITCH_CHANNELS`);
+
+  const joined = channels.names().filter((name) => wanted.has(name));
   if (joined.length === 0) throw new Error('Ingen kanaler konfigureret — sæt TWITCH_CHANNELS');
 
   const client = new tmi.Client({
@@ -233,6 +249,9 @@ async function main() {
     // en kopi — ellers ændrer vores egne kanalnavne sig under os.
     channels: [...joined],
   });
+
+  // Kommandoen får adgang til at forlade en kanal uden at kende tmi.js.
+  setLeaveHandler((name) => client.part(`#${name}`).catch(() => {}));
 
   client.on('connected', (address, port) => {
     logger.info(`forbundet til ${address}:${port} som ${twitch.username}`);
@@ -272,9 +291,12 @@ async function main() {
         channel: normalizeChannel(channel),
         argument: sanitizeArgument(rest.join(' ')),
         viewer,
+        tags,
       });
 
-      await client.say(channel, truncate(`@${viewer} ${reply}`));
+      // En tom besked betyder "ikke din at køre" — ignoreres i stilhed, som
+      // de øvrige rettighedstjek gør.
+      if (reply) await client.say(channel, truncate(`@${viewer} ${reply}`));
     } catch (error) {
       // Argumentet logges med escapes, så usynlige tegn kan ses. Uden det
       // ligner "Petsen" og "Petsen␀" hinanden til forveksling i en log.

@@ -236,10 +236,46 @@ Sæsonerne i API'et går til S55, og de er alle afsluttede. Season 59 var åben
 for tilmelding på FACEIT's hjemmeside, men findes ikke i API'et endnu, så
 `!esea` rapporterer den seneste sæson der har data.
 
+## Folk tilføjer sig selv
+
+Enhver der bliver slået op ved navn havner på bottens **watch-liste** og bliver
+målt fra da af. En seer skriver `!rank <sit FACEIT-nick>` én gang, og derefter
+har botten deres elo-historik — ingen skal tilføje dem i hånden.
+
+Navnet på den der spurgte gemmes sammen med kontoen, og parringen skrives til
+`data/spillere.txt`, som kan åbnes i panelets filhåndtering:
+
+```
+Linkede konti — 3 i alt, 2 med Twitch-navn
+Opdateret 10/11/26 kl 14:06
+
+Twitch    FACEIT  SteamID
+-------------------------
+petsen02  Petsen  76561198847373934
+—         s1mple
+vigg0     vigg0   76561198222914476
+```
+
+**Parringen er et gæt**, og et ærligt et kun fordi folk mest slår sig selv op.
+Intet forhindrer en seer i at spørge om en andens konto, så Twitch-navnet
+betyder "hvem introducerede dette nick", ikke "hvem ejer det".
+
+Linket gemmes fra den **første** der spørger, og en senere spørger overtager
+det ikke — de er ikke mere sandsynlige. Med én undtagelse: er Twitch-navnet
+det samme som FACEIT-nicket, overtager det, for det er det tætteste botten
+kommer på et ejerskabsbevis. Et navn der ikke matcher kan aldrig overtage, så
+linket kan kun flytte sig mod den sandsynlige ejer.
+
+Watch-listen og kanalens egen liste er **bevidst adskilt**. Kanalens liste
+siger hvem streameren bryder sig om — det er den `!ranks` viser og `!rank`
+uden argument svarer for. Watch-listen siger hvem vi måler.
+
 ## Admin-kommandoer
 
 Alt der styrer kanalens opsætning har præfikset `!csbot`, og er lukket for
-almindelige seere. Præfikset holder dem adskilt fra seernes kommandoer og fra
+almindelige seere. Twitch-logins i `BOT_OWNERS` kan køre dem i enhver kanal
+uden først at være moderator dér — ellers kan botten ikke styres i en kanal
+man ikke selv ejer. Præfikset holder dem adskilt fra seernes kommandoer og fra
 andre bots i samme chat; det kan skiftes med `ADMIN_PREFIX` i `.env`.
 
 | Kommando | Hvem | Virkning |
@@ -255,6 +291,7 @@ andre bots i samme chat; det kan skiftes med `ADMIN_PREFIX` i `.env`.
 | `!csbotesea` | mod | Diagnose: hvad botten ser hos ESEA, og hvor den leder |
 | `!csbotesea <hold eller nick>` | mod | Prøver holdets ruter, eller viser turneringerne bag en spillers seneste kampe |
 | `!csbotesea <kamp>` | mod | Viser en kamps felter — tager et match-id eller et room-link |
+| `!csbotleave [kanal]` | broadcaster / operatør | Får botten til at forlade kanalen |
 
 ## Level og elo
 
@@ -287,8 +324,17 @@ Det har to konsekvenser, som svarene er ærlige om:
   dem uden at gætte. Kampene bogføres så med resultat men uden elo, og
   `!session` skriver `[3/5 målt]` frem for et forkert totaltal.
 
-`data/tracker.json` er derfor den eneste fil der ikke kan genskabes fra API'et.
-Skrivninger er atomare, og tilstanden gemmes også ved SIGTERM og nedbrud.
+Målingerne er derfor det eneste der ikke kan genskabes fra API'et.
+
+De ligger i **SQLite** (`data/tracker.db`) når Node kan levere det, hvilket
+Node 22.5 og nyere kan. JSON-filen blev skrevet helt om ved hver pollrunde, så
+prisen voksede med mængden af historik — præcis det der stod i vejen for at
+gemme historik. SQLite skriver kun de rækker der ændrede sig.
+
+Kan Node ikke levere `node:sqlite`, bliver botten på JSON af sig selv, og
+skifter ved næste genstart når Node er opgraderet. Første start med en tom
+database flytter en eksisterende JSON-fil med over; filen bliver liggende som
+vejen tilbage.
 
 ## Rang-ikoner med 7TV
 

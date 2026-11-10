@@ -4,6 +4,7 @@ import { channels } from './channels.js';
 import { logger } from './logger.js';
 import { refreshPlayer, getHistory } from './faceit.js';
 import { localDateKey } from './time.js';
+import { writePlayerReport } from './report.js';
 import { didWin } from './commands.js';
 
 /**
@@ -117,9 +118,33 @@ export async function pollPlayer(entry, now = Date.now()) {
   return { measured, elo };
 }
 
+/**
+ * Alle konti der skal måles: kanalernes lister plus bottens watch-liste.
+ *
+ * De to er bevidst adskilt. En kanals liste siger hvem streameren bryder sig
+ * om; watch-listen siger hvem nogen har spurgt om. At blive spurgt om starter
+ * målingen, men dukker ikke op i kanalens !csbotplayerlist, som mods selv
+ * plejer.
+ */
+export function accountsToPoll() {
+  const seen = new Map();
+
+  for (const player of channels.trackedPlayers()) {
+    seen.set(player.playerId, player);
+  }
+
+  for (const entry of store.watchedAccounts()) {
+    if (entry.playerId && !seen.has(entry.playerId)) {
+      seen.set(entry.playerId, { playerId: entry.playerId, nickname: entry.nickname });
+    }
+  }
+
+  return [...seen.values()];
+}
+
 async function tick() {
   const now = Date.now();
-  const due = channels.trackedPlayers().filter((player) => isDue(player, now));
+  const due = accountsToPoll().filter((player) => isDue(player, now));
 
   if (due.length === 0) return;
 
@@ -135,6 +160,9 @@ async function tick() {
 
   store.prune(now);
   store.save();
+
+  // Listen skrives her, så den afspejler de nicks pollen lige har set.
+  writePlayerReport(now);
 }
 
 export function startTracker() {
