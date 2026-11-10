@@ -132,8 +132,11 @@ export function formatLastGame(game, { budget = 420 } = {}) {
     Number.isFinite(game.rating) ? `${twoDecimals(game.rating)} rating` : null,
     Number.isFinite(game.swing) ? `${signedOneDecimal(game.swing)} swing` : null,
 
-    // Vores eget målte tal — det eneste felt her FACEIT ikke leverer.
-    Number.isFinite(game.eloDelta) ? `${formatEloDelta(game.eloDelta)} elo` : null,
+    // Vores eget målte tal — det eneste felt her FACEIT ikke leverer. Mangler
+    // det for en spiller vi følger, siges det; tavshed ligner nul.
+    Number.isFinite(game.eloDelta)
+      ? `${formatEloDelta(game.eloDelta)} elo`
+      : (game.eloUnmeasured ? 'elo ikke målt' : null),
 
     Number.isFinite(game.utilDamage) ? `${Math.round(game.utilDamage)} util dmg` : null,
     formatMultiKill(game),

@@ -173,6 +173,15 @@ Nu tæller den de kampe den kan gøre rede for — dem der sluttede efter den �
 `formatSession` skriver `[3/4 målt]` når den ikke dækker hele dagen. Reglen
 ligger i `attributeElo()` i `commands.js` og er testet uden netværk.
 
+`!lastgame` kan derimod ikke reddes af en baseline: den viser ét bestemt tal
+for én bestemt kamp, og det tal findes ikke hvis kampen sluttede under
+nedetiden. Så `!lastgame` skriver `elo ikke målt` for en spiller botten
+følger, frem for at lade feltet forsvinde. For en spiller den ikke følger
+udelades feltet som før — der er intet at forklare.
+
+Begge veje er altså lukkede for de kampe der allerede er gået tabt. Fra næste
+kamp efter en genstart måles der igen.
+
 En CS-kamp er længere end 60 sekunder, så antagelsen om at højst én kamp falder
 mellem to målinger holder — ligesom i LoL. Aktiv-vinduet bør måske op fra 45
 min, da en FACEIT-kamp kan vare længere end en LoL-kamp.

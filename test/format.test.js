@@ -158,6 +158,32 @@ test('formatLastGame udelader felter der mangler i stedet for at vise nul', () =
   assert.ok(message.includes('0.74 K/D'), message);
 });
 
+test('formatLastGame siger til når elo ikke blev målt', () => {
+  // Botten var nede da kampen sluttede. Et tomt felt ville læses som nul elo.
+  const message = formatLastGame({
+    nickname: 'DEWI', map: 'de_ancient', score: '13-10', won: true,
+    kills: 20, deaths: 15, kd: 1.33, eloUnmeasured: true,
+  });
+  assert.ok(message.includes('elo ikke målt'), message);
+});
+
+test('formatLastGame tier om elo for en spiller botten ikke følger', () => {
+  const message = formatLastGame({
+    nickname: 'S1MPLE', map: 'de_dust2', score: '13-4', won: true,
+    kills: 28, deaths: 9, kd: 3.11,
+  });
+  assert.ok(!message.includes('elo'), message);
+});
+
+test('et målt elo-tal slår beskeden om at det mangler', () => {
+  const message = formatLastGame({
+    nickname: 'DEWI', map: 'de_ancient', score: '13-10', won: true,
+    kills: 20, deaths: 15, kd: 1.33, eloDelta: 25, eloUnmeasured: true,
+  });
+  assert.ok(message.includes('+25 elo'), message);
+  assert.ok(!message.includes('ikke målt'), message);
+});
+
 test('formatLastGame siger til når der slet ikke var statistik', () => {
   assert.equal(
     formatLastGame({ nickname: 'PETSEN' }),

@@ -426,11 +426,23 @@ export async function commandLastGame({ channel, argument, viewer }) {
 
   const eloDelta = store.getMatchDelta(player.playerId, finished.match_id);
 
+  // Elo pr. kamp er det eneste felt her FACEIT ikke leverer — vi måler det
+  // selv ved at se elo-tallet ændre sig mellem to pollrunder. Det virker
+  // mens botten kører, og kun der: sluttede kampen mens den var nede, kom
+  // ændringen som ét spring sammen med de andre kampe fra nedetiden, og den
+  // kan ikke fordeles mellem dem uden at gætte.
+  //
+  // Så sig det. Et felt der bare forsvinder ligner en kommando i stykker —
+  // det var præcis hvad !session gjorde forkert. For en spiller botten slet
+  // ikke følger, udelades feltet derimod: der er intet at forklare.
+  const tracked = store.watchedAccounts().some((e) => e.playerId === player.playerId);
+
   return formatLastGame({
     nickname: player.nickname,
     won: stats?.won ?? didWin(finished, player.playerId),
     ...(stats ?? {}),
     eloDelta: typeof eloDelta === 'number' ? eloDelta : undefined,
+    eloUnmeasured: typeof eloDelta !== 'number' && tracked,
   });
 }
 
