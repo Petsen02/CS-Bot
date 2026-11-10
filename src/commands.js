@@ -853,6 +853,48 @@ export function commandRemoveMain({ channel, argument, viewer }) {
 }
 
 /**
+ * Hvorfor !hold og elo-tallet i !lastgame opfører sig som de gør.
+ *
+ * De to hviler på hver sin antagelse, og ingen af dem kan efterprøves herfra:
+ * at FACEIT lægger en IGANGVÆRENDE kamp i spillerens historik, og at
+ * trackeren har nået at måle den seneste kamp. Denne svarer på begge i
+ * chatten, hvor det kan køres mens der faktisk spilles.
+ */
+export async function commandLiveDebug({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
+
+  const history = await getHistory(player.playerId, { limit: 5 });
+  const statuses = history.map((item) => String(item.status ?? '?').toLowerCase());
+  const live = history.find((item) => isLive(item.status));
+
+  const parts = [
+    player.nickname,
+    `historik: ${statuses.join('/') || 'tom'}`,
+    `live: ${live ? 'ja' : 'nej'}`,
+  ];
+
+  // Watch-listen afgør om trackeren overhovedet måler spilleren.
+  const watched = store.watchedAccounts().find((e) => e.playerId === player.playerId);
+  parts.push(`watch: ${watched ? (watched.twitch ?? 'uden navn') : 'NEJ'}`);
+
+  // Og hvor mange kampe der faktisk er målt elo for.
+  const measured = store.getMatchesBetween(player.playerId, 0);
+  const withElo = measured.filter((m) => typeof m.eloDelta === 'number').length;
+  parts.push(`målte kampe: ${withElo}/${measured.length}`);
+
+  const newest = history.find((item) => isFinished(item.status));
+  if (newest?.match_id) {
+    const delta = store.getMatchDelta(player.playerId, newest.match_id);
+    parts.push(`seneste kamp: ${delta === null ? 'ikke målt' : `${delta > 0 ? '+' : ''}${delta}`}`);
+  }
+
+  const snapshot = store.getSnapshot(player.playerId);
+  parts.push(`snapshot: ${snapshot ? `${snapshot.elo} elo` : 'ingen'}`);
+
+  return parts.join(SEP);
+}
+
+/**
  * Får botten til at forlade en kanal.
  *
  * Tjekker sine egne rettigheder frem for at stå på 'mod'-niveau: i kanalen
