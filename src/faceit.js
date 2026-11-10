@@ -319,6 +319,18 @@ export function getMatchStats(matchId) {
     request(`/matches/${encodeURIComponent(matchId)}/stats`));
 }
 
+/**
+ * Statistik pr. kamp, pagineret.
+ *
+ * En anden rute end /players/{id}/stats/{game}, som er livstidstal. Denne har
+ * en række pr. kamp — og måske elo undervejs, hvilket historikken ikke har.
+ */
+export function getPlayerMatchStats(playerId, { limit = 20, offset = 0 } = {}) {
+  return statsCache.wrap(`matchstats:${playerId}:${offset}:${limit}`, () =>
+    request(`/players/${encodeURIComponent(playerId)}/games/${config.faceit.game}/stats`,
+      { params: { limit, offset } }));
+}
+
 /** Livstidsstatistik og segmenter pr. map. */
 export function getPlayerStats(playerId) {
   return statsCache.wrap(`stats:${playerId}`, () =>
