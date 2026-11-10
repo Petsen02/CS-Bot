@@ -287,6 +287,24 @@ async function main() {
     }
   });
 
+  // Opstartsloggen viser hvad der står i OPSÆTNINGEN. Om Twitch faktisk lod
+  // botten komme ind er noget andet: en kanal der ikke findes, en bot der er
+  // bandlyst, eller en suspenderet kanal fejler uden at tmi.js kaster.
+  client.on('join', (channel, username, self) => {
+    if (self) logger.info(`inde i ${channel}`);
+  });
+
+  client.on('part', (channel, username, self) => {
+    if (self) logger.warn(`ude af ${channel}`);
+  });
+
+  // Twitch forklarer sig selv her — msg_banned, msg_channel_suspended,
+  // msg_requires_verified_phone_number og resten. Uden denne linje går
+  // beskeden tabt, og det ligner at kommandoen ikke virker.
+  client.on('notice', (channel, msgid, message) => {
+    logger.warn(`Twitch ${channel}: ${msgid} — ${message}`);
+  });
+
   client.on('message', async (channel, tags, message, self) => {
     if (self) return;
 
@@ -316,7 +334,17 @@ async function main() {
 
       // En tom besked betyder "ikke din at køre" — ignoreres i stilhed, som
       // de øvrige rettighedstjek gør.
-      if (reply) await client.say(channel, truncate(`@${viewer} ${reply}`));
+      //
+      // Afsendelsen har sit eget fangnet: slår den fejl, er det ikke
+      // kommandoen der fejlede, og at svare med en fejlbesked ville slå fejl
+      // på nøjagtig samme måde. Så det logges i stedet.
+      if (reply) {
+        try {
+          await client.say(channel, truncate(`@${viewer} ${reply}`));
+        } catch (error) {
+          logger.warn(`kunne ikke skrive i ${channel}: ${error.message ?? error}`);
+        }
+      }
     } catch (error) {
       // Argumentet logges med escapes, så usynlige tegn kan ses. Uden det
       // ligner "Petsen" og "Petsen␀" hinanden til forveksling i en log.
