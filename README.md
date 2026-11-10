@@ -414,9 +414,10 @@ npm start
 
 En API-nøgle oprettes i FACEIT's Developer Portal under App Studio.
 
-Alle indstillinger er dokumenteret i `.env.example`. Vær opmærksom på
-`FACEIT_LIMIT_PER_SECOND` og `FACEIT_LIMIT_PER_TEN_MINUTES`: de er sat
-konservativt, fordi FACEIT's faktiske budget endnu ikke er bekræftet.
+`.env.example` har fem felter øverst der skal udfyldes. Alt derunder står
+udkommenteret med den værdi koden allerede bruger — fjern havelågen kun for
+det du vil ændre. `FACEIT_LIMIT_PER_SECOND` og `FACEIT_LIMIT_PER_TEN_MINUTES`
+er bevidst lave, fordi FACEIT's faktiske budget ikke er bekræftet.
 
 ## Token-fornyelse
 
