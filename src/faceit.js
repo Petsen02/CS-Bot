@@ -473,6 +473,13 @@ export function getLeaderboard(region, { limit = 1, offset = 0, country } = {}) 
  * Diagnostik, ikke en kommando brugerne skal kende. Hver rute fanges for sig,
  * så en 404 på den ene ikke skjuler et svar fra den anden.
  */
+/** "finished×4, ongoing×1" — kort nok til en chatlinje. */
+function tally(values) {
+  const counts = new Map();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  return [...counts].map(([value, n]) => (n > 1 ? `${value}×${n}` : value)).join(', ') || 'tom';
+}
+
 export async function probeLiveRoutes(playerId) {
   const history = await getHistory(playerId, { limit: 20 });
   const queueGame = history.find(
@@ -486,8 +493,12 @@ export async function probeLiveRoutes(playerId) {
     try {
       const payload = await request(path, { retries: 0, params });
       const items = Array.isArray(payload?.items) ? payload.items : null;
+
+      // Statusserne afgør det hele. En rute der svarer 200 med fem
+      // FINISHED-kampe er bare historikken igen — den ignorerer den ukendte
+      // parameter. Kun en status der ikke er "finished" er en ny dør.
       const shape = items
-        ? `${items.length} items`
+        ? `${items.length}: ${tally(items.map((item) => normalizeStatus(item.status)))}`
         : Object.keys(payload ?? {}).slice(0, 4).join(',') || 'tomt';
       results.push(`${label} 200 ${shape}`);
     } catch (error) {
