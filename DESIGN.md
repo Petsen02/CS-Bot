@@ -154,9 +154,24 @@ Løsningen er derfor den samme, og `tracker.js` overlever næsten uændret:
 
 1. Snapshot af elo pr. tracket spiller ved hver poll.
 2. Ny kamp i historikken → tilskriv ændringen siden sidste snapshot til den kamp.
-3. Dagsbaseline med tidsstempel, så en baseline taget midt i en session ikke
-   bruges som anker for hele dagen.
+3. Dagsbaseline med tidsstempel, som anker for de kampe der sluttede efter den.
 4. Adaptiv polling: aktiv 60 s, idle 600 s, aktiv-vindue 45 min.
+
+### Målt: baselinen skal tælle delvist
+
+Punkt 2 holder kun mens botten kører. Falder den ned i seks timer, ser den
+første poll bagefter flere nye kampe på én gang, og ændringen kan ikke fordeles
+mellem dem uden at gætte — de bogføres med resultat, men uden elo. Set i
+praksis: `!csbotlive dewi` gav `målte kampe: 0/2`.
+
+Baselinen redder det, fordi den sammenligner to elo-tal og er ligeglad med hvad
+der skete imellem. Men den blev oprindeligt kun brugt hvis den lå før dagens
+*allerførste* kamp. Startede botten kl. 18 og blev der spillet kl. 15, blev hele
+baselinen kasseret, og `!session` kunne så ikke vise elo resten af dagen.
+
+Nu tæller den de kampe den kan gøre rede for — dem der sluttede efter den — og
+`formatSession` skriver `[3/4 målt]` når den ikke dækker hele dagen. Reglen
+ligger i `attributeElo()` i `commands.js` og er testet uden netværk.
 
 En CS-kamp er længere end 60 sekunder, så antagelsen om at højst én kamp falder
 mellem to målinger holder — ligesom i LoL. Aktiv-vinduet bør måske op fra 45
@@ -361,3 +376,35 @@ tilmelding på hjemmesiden, men findes ikke i API'et, så `!esea` rapporterer de
 seneste sæson med data.
 
 ### Tidligere: hvorfor de første runder slog fejl
+
+## 14. Hvorfor `!hold` kun virker til ESEA
+
+`!hold` skal vise hvem man spiller med **lige nu**. Det kan det officielle API
+ikke svare på for en almindelig kø-kamp, og det er målt i fire trin:
+
+1. **Historikken bærer den ikke.** En kamp med status `ONGOING`, bekræftet
+   live via sit room-link, stod slet ikke i deltagernes
+   `/players/{id}/history` mens den kørte. `!csbotlive <room-link>` gav
+   `kamp ONGOING │ live efter botten: ja │ KAMPEN ER IKKE I HISTORIKKEN`.
+2. **Hub- og turneringsscanningen finder den ikke.** Botten spørger hver hub
+   og hver nylig turnering om igangværende kampe. For en kø-kamp er svaret
+   nul overalt: `5 hubs + 1 turneringer`, alle `0`, `hende i en af dem: nej`.
+   Det er korrekt — en kø-kamp hører ikke til en hub.
+3. **Sidens egen rute svarer ikke en server.** FACEIT's web-UI bruger
+   `match/v1/matches/groupByState?userId=…`, som ikke bærer nogen
+   Authorization-header og i sidens egen trafik blev kaldt med en *anden*
+   spillers id. Prøvet fra serveren med botten identificeret som sig selv:
+   `403`. Ruten kræver en browser-session.
+4. **Der blev ikke prøvet at komme udenom.** Et kald der udgav sig for en
+   browser ville måske være sluppet igennem. Det er ikke en vej vi går:
+   botten melder sig som det den er, og et afslag er et svar.
+
+Tilbage står: kampe i en **hub** eller en **turnering** (ESEA) kan findes,
+kø-kampe kan ikke. Derfor hedder kommandoen `!eseahold`, og `!hold` svarer
+`… er ikke i en FACEIT-kamp lige nu` og peger videre, frem for at vise noget
+fra sidste kamp som om det var den igangværende.
+
+Den eneste kendte vej til kø-kampe er en rigtig browser med en indlogget
+FACEIT-session på serveren. Det ville kræve at dine kontocookies lå på
+serveren, det ville gå i stykker ved enhver ændring af siden, og det er netop
+det deres botkontrol står for at forhindre. Anbefales ikke.

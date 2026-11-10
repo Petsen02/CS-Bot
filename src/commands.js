@@ -36,7 +36,6 @@ import {
   describeMatch,
   describeSchedule,
 } from './esea.js';
-import { fetchInternal, ongoingMatchesUrl, describeBody } from './internal.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
   SEP,
@@ -196,6 +195,7 @@ export async function commandSession({ channel, argument, viewer }) {
   );
 
   const results = [];
+  const endedAt = [];
   let eloTotal = 0;
   let measuredCount = 0;
 
@@ -207,6 +207,7 @@ export async function commandSession({ channel, argument, viewer }) {
     if (won === null) continue; // Kan ikke afgøres — hellere udelade end gætte.
 
     results.push(won);
+    endedAt.push((item.finished_at ?? item.started_at ?? 0) * 1000);
 
     if (typeof record?.eloDelta === 'number') {
       eloTotal += record.eloDelta;
@@ -214,29 +215,25 @@ export async function commandSession({ channel, argument, viewer }) {
     }
   }
 
-  // Dagsbaselinen slår enkeltkampene, når den dækker hele dagen.
+  // Dagsbaselinen slår enkeltkampene sammenlagt.
   //
-  // At lægge målte kampe sammen er kun rigtigt hvis hver eneste blev målt —
+  // At lægge enkeltkampe sammen er kun rigtigt hvis hver eneste blev målt —
   // og en kamp der sluttede mens botten var nede, blev den ikke. En baseline
-  // sammenligner dagens start med nu, hvilket forbliver rigtigt selv når
-  // enkelte kampe mangler.
+  // sammenligner et elo-tal med nu, og det forbliver rigtigt selv når de
+  // enkelte kampe imellem mangler.
   //
-  // Men kun hvis den blev taget FØR dagens første kamp. En baseline fra midt
-  // i en session ville i stilhed slette alt der kom før den.
+  // Baselinen sættes første gang trackeren ser spilleren på dagen, og det er
+  // ikke altid før dagens første kamp: starter botten kl. 18 og blev der
+  // spillet kl. 15, kan den ikke gøre rede for de tidlige kampe. Men den kan
+  // gøre rede for alle der sluttede efter den, og de tælles med. Tidligere
+  // blev hele baselinen kasseret i det tilfælde, og !session kunne så ikke
+  // vise elo overhovedet resten af dagen.
   const baseline = store.getBaseline(player.playerId, localDateKey(config.timezone));
   const snapshot = store.getSnapshot(player.playerId);
 
-  const firstGameAt = ordered.length > 0
-    ? (ordered[0].started_at ?? ordered[0].finished_at ?? 0) * 1000
-    : null;
-
-  const baselineCoversDay = baseline?.at != null
-    && (firstGameAt === null || baseline.at <= firstGameAt);
-
-  if (baseline && snapshot && baselineCoversDay && Number.isFinite(snapshot.elo)) {
-    eloTotal = snapshot.elo - baseline.elo;
-    measuredCount = results.length;
-  }
+  ({ eloTotal, measuredCount } = attributeElo({
+    endedAt, baseline, snapshot, eloTotal, measuredCount,
+  }));
 
   return formatSession({
     nickname: player.nickname,
@@ -244,6 +241,31 @@ export async function commandSession({ channel, argument, viewer }) {
     eloTotal,
     measuredCount,
   });
+}
+
+/**
+ * Hvor meget elo dagen har givet, og hvor mange kampe tallet dækker.
+ *
+ * Ren funktion, så reglen kan testes uden at ringe til FACEIT.
+ *
+ * @param {object} input
+ * @param {number[]} input.endedAt  Sluttidspunkt (ms) for dagens kampe.
+ * @param {{elo: number, at?: number}|null} input.baseline  Dagens anker.
+ * @param {{elo: number}|null} input.snapshot  Seneste målte elo.
+ * @param {number} input.eloTotal  Summen af de enkeltmålte kampe.
+ * @param {number} input.measuredCount  Hvor mange af dem der blev målt.
+ */
+export function attributeElo({ endedAt, baseline, snapshot, eloTotal, measuredCount }) {
+  if (!baseline || !snapshot || baseline.at == null || !Number.isFinite(snapshot.elo)) {
+    return { eloTotal, measuredCount };
+  }
+
+  const covered = endedAt.filter((at) => at > baseline.at).length;
+  if (covered === 0) return { eloTotal, measuredCount };
+
+  // Baselinen slår enkeltkampene sammenlagt: den er stadig rigtig når en
+  // kamp imellem ikke blev målt.
+  return { eloTotal: snapshot.elo - baseline.elo, measuredCount: covered };
 }
 
 /**
@@ -1043,14 +1065,6 @@ export async function commandLiveDebug({ channel, argument, viewer }) {
   parts.push(`kilder: ${search.hubs} hubs + ${search.competitions} turneringer`);
   parts.push(search.seen.length ? `ongoing: ${search.seen.join(', ')}` : 'ingen kilder');
   parts.push(`hende i en af dem: ${search.foundPlayer ? 'JA' : 'nej'}`);
-
-  // Sidens egen rute til "hvilken kamp er spilleren i nu". Det dokumenterede
-  // API kan ikke svare på det for en kø-kamp; om denne kan, uden cookies og
-  // uden at udgive sig for en browser, er stadig umålt.
-  const internal = await fetchInternal(ongoingMatchesUrl(player.playerId));
-  parts.push(`internt: ${internal.status} ${internal.status === 200
-    ? describeBody(internal.body)
-    : internal.hint}`);
 
   return parts.join(SEP);
 }
