@@ -207,7 +207,7 @@ export async function commandSession({ channel, argument, viewer }) {
     if (won === null) continue; // Kan ikke afgøres — hellere udelade end gætte.
 
     results.push(won);
-    endedAt.push((item.finished_at ?? item.started_at ?? 0) * 1000);
+    endedAt.push(endedAtMs(item));
 
     if (typeof record?.eloDelta === 'number') {
       eloTotal += record.eloDelta;
@@ -255,6 +255,48 @@ export async function commandSession({ channel, argument, viewer }) {
  * @param {number} input.eloTotal  Summen af de enkeltmålte kampe.
  * @param {number} input.measuredCount  Hvor mange af dem der blev målt.
  */
+/** Hvornår en kamp fra historikken sluttede, i ms. FACEIT svarer i sekunder. */
+export function endedAtMs(item) {
+  return (item?.finished_at ?? item?.started_at ?? 0) * 1000;
+}
+
+/**
+ * Elo-ændringen for ÉN bestemt kamp, udledt af dagsbaselinen.
+ *
+ * Trackeren måler normalt pr. kamp ved at se elo-tallet flytte sig mellem to
+ * pollrunder, men den måling går tabt hvis botten var nede da kampen sluttede.
+ * Baselinen overlever derimod en genstart, og når kun én kamp ligger efter
+ * den, er hele forskellen mellem baseline og nu netop den kamps.
+ *
+ * Det er samme regneskab som !session bruger. Uden det kunne !session sige
+ * "(-29 elo) [1/5 målt]" mens !lastgame kaldte den samme kamp umålt.
+ *
+ * @param {object} input
+ * @param {number} input.matchEndedAt  Hvornår kampen sluttede (ms).
+ * @param {number[]} input.dayEndedAt  Sluttidspunkt for dagens kampe (ms).
+ * @param {{elo: number, at?: number}|null} input.baseline
+ * @param {{elo: number, at?: number}|null} input.snapshot
+ * @returns {number|null} null når tallet ikke kan isoleres.
+ */
+export function deriveMatchDelta({ matchEndedAt, dayEndedAt, baseline, snapshot }) {
+  if (!baseline || !snapshot) return null;
+  if (baseline.at == null || snapshot.at == null) return null;
+  if (!Number.isFinite(baseline.elo) || !Number.isFinite(snapshot.elo)) return null;
+
+  // Kampen skal ligge efter baselinen, ellers siger forskellen intet om den.
+  if (!(matchEndedAt > baseline.at)) return null;
+
+  // Og elo-tallet skal være aflæst efter kampen. Spørger nogen i minuttet
+  // mellem at kampen slutter og næste poll, er snapshottet fra før kampen.
+  if (!(snapshot.at >= matchEndedAt)) return null;
+
+  // Kun hvis den står alene efter baselinen. Er der to, kan forskellen ikke
+  // fordeles mellem dem uden at gætte.
+  if (dayEndedAt.filter((at) => at > baseline.at).length !== 1) return null;
+
+  return snapshot.elo - baseline.elo;
+}
+
 export function attributeElo({ endedAt, baseline, snapshot, eloTotal, measuredCount }) {
   if (!baseline || !snapshot || baseline.at == null || !Number.isFinite(snapshot.elo)) {
     return { eloTotal, measuredCount };
@@ -412,7 +454,9 @@ function add(a, b) {
 export async function commandLastGame({ channel, argument, viewer }) {
   const { player } = await resolveTarget(channel, argument, viewer);
 
-  const history = await getHistory(player.playerId, { limit: 5 });
+  // Ti frem for fem: dagens kampe skal være med, ellers kan deriveMatchDelta
+  // ikke se om den seneste står alene efter baselinen.
+  const history = await getHistory(player.playerId, { limit: 10 });
   const finished = history.find((item) => isFinished(item.status));
 
   if (!finished) return `${player.nickname} har ingen færdige FACEIT-kampe`;
@@ -424,7 +468,20 @@ export async function commandLastGame({ channel, argument, viewer }) {
     logger.warn(`!lastgame stats fejlede: ${error.message}`);
   }
 
-  const eloDelta = store.getMatchDelta(player.playerId, finished.match_id);
+  let eloDelta = store.getMatchDelta(player.playerId, finished.match_id);
+
+  // Målte trackeren den ikke, kan dagsbaselinen måske stadig isolere den.
+  if (typeof eloDelta !== 'number') {
+    const dayStart = startOfLocalDay(config.timezone);
+    eloDelta = deriveMatchDelta({
+      matchEndedAt: endedAtMs(finished),
+      dayEndedAt: history
+        .filter((item) => isFinished(item.status) && endedAtMs(item) >= dayStart)
+        .map(endedAtMs),
+      baseline: store.getBaseline(player.playerId, localDateKey(config.timezone)),
+      snapshot: store.getSnapshot(player.playerId),
+    });
+  }
 
   // Elo pr. kamp er det eneste felt her FACEIT ikke leverer — vi måler det
   // selv ved at se elo-tallet ændre sig mellem to pollrunder. Det virker

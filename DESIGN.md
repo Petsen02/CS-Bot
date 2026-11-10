@@ -173,14 +173,21 @@ Nu tæller den de kampe den kan gøre rede for — dem der sluttede efter den �
 `formatSession` skriver `[3/4 målt]` når den ikke dækker hele dagen. Reglen
 ligger i `attributeElo()` i `commands.js` og er testet uden netværk.
 
-`!lastgame` kan derimod ikke reddes af en baseline: den viser ét bestemt tal
-for én bestemt kamp, og det tal findes ikke hvis kampen sluttede under
-nedetiden. Så `!lastgame` skriver `elo ikke målt` for en spiller botten
-følger, frem for at lade feltet forsvinde. For en spiller den ikke følger
-udelades feltet som før — der er intet at forklare.
+`!lastgame` kan baselinen også redde, men kun i ét tilfælde: når **præcis én**
+kamp ligger efter baselinen, er hele forskellen mellem baseline og nu netop
+den kamps. Set i praksis sagde `!session` `(-29 elo) [1/5 målt]` mens
+`!lastgame` kaldte den samme kamp umålt — to kommandoer, samme tal, kun den
+ene regnede det ud. Reglen ligger nu i `deriveMatchDelta()` og bruges af
+`!lastgame` når trackeren ikke selv nåede at måle kampen.
 
-Begge veje er altså lukkede for de kampe der allerede er gået tabt. Fra næste
-kamp efter en genstart måles der igen.
+Den kræver tre ting, og siger ellers nej: kampen skal ligge efter baselinen,
+snapshottet skal være aflæst efter kampen (ellers er elo-tallet fra før den),
+og der må ikke ligge to kampe efter baselinen — så kan forskellen ikke
+fordeles mellem dem uden at gætte.
+
+Kan den ikke udledes, skriver `!lastgame` `elo ikke målt` for en spiller
+botten følger, frem for at lade feltet forsvinde. For en spiller den ikke
+følger udelades feltet som før — der er intet at forklare.
 
 En CS-kamp er længere end 60 sekunder, så antagelsen om at højst én kamp falder
 mellem to målinger holder — ligesom i LoL. Aktiv-vinduet bør måske op fra 45
