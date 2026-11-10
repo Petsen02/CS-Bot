@@ -461,3 +461,52 @@ export function getLeaderboard(region, { limit = 1, offset = 0, country } = {}) 
     params: { limit, offset, country },
   });
 }
+
+/**
+ * Leder efter en dokumenteret rute der kan svare på "hvilken kø-kamp er
+ * spilleren i nu".
+ *
+ * Hub- og turneringskampe kan findes: begge har en `/matches?type=ongoing`.
+ * En almindelig kø-kamp hører til en *matchmaking*, og om den har samme rute
+ * er aldrig blevet målt — kun gættet på. Den her kommando måler det.
+ *
+ * Diagnostik, ikke en kommando brugerne skal kende. Hver rute fanges for sig,
+ * så en 404 på den ene ikke skjuler et svar fra den anden.
+ */
+export async function probeLiveRoutes(playerId) {
+  const history = await getHistory(playerId, { limit: 20 });
+  const queueGame = history.find(
+    (item) => String(item.competition_type ?? '').toLowerCase() === 'matchmaking',
+  );
+  const compId = queueGame?.competition_id ?? null;
+
+  const results = [];
+
+  async function probe(label, path, params) {
+    try {
+      const payload = await request(path, { retries: 0, params });
+      const items = Array.isArray(payload?.items) ? payload.items : null;
+      const shape = items
+        ? `${items.length} items`
+        : Object.keys(payload ?? {}).slice(0, 4).join(',') || 'tomt';
+      results.push(`${label} 200 ${shape}`);
+    } catch (error) {
+      results.push(`${label} ${error?.status ?? 0}`);
+    }
+  }
+
+  if (compId) {
+    await probe('mm', `/matchmakings/${encodeURIComponent(compId)}`);
+    await probe('mm/matches', `/matchmakings/${encodeURIComponent(compId)}/matches`, { limit: 5 });
+    await probe('mm/ongoing', `/matchmakings/${encodeURIComponent(compId)}/matches`, { type: 'ongoing', limit: 5 });
+  }
+
+  await probe('p/matches', `/players/${encodeURIComponent(playerId)}/matches`, {
+    game: config.faceit.game, limit: 5,
+  });
+  await probe('p/ongoing', `/players/${encodeURIComponent(playerId)}/history`, {
+    game: config.faceit.game, type: 'ongoing', limit: 5,
+  });
+
+  return { compId, competitionName: queueGame?.competition_name ?? null, results };
+}
