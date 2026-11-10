@@ -16,7 +16,6 @@ import {
   getPlayerTeams,
   getTeam,
   getPlayerHubs,
-  probeLiveRoutes,
   getHubMatches,
   getChampionshipMatches,
   isFinished,
@@ -1137,26 +1136,6 @@ export async function commandLiveDebug({ channel, argument, viewer }) {
   parts.push(`hende i en af dem: ${search.foundPlayer ? 'JA' : 'nej'}`);
 
   return parts.join(SEP);
-}
-
-/**
- * Måler om et dokumenteret endpoint kan finde en igangværende KØ-kamp.
- *
- * Hub- og turneringskampe kan findes. Kø-kampe kan ikke, med det botten
- * kender i dag, og det er grunden til at !hold kun virker til ESEA. Før den
- * konklusion står fast, skal matchmaking-ruterne være prøvet — ikke gættet
- * på. Kør den mens spilleren ER i en kø-kamp; ellers siger et tomt svar
- * ingenting.
- */
-export async function commandQueueDebug({ channel, argument, viewer }) {
-  const { player } = await resolveTarget(channel, argument, viewer);
-  const probe = await probeLiveRoutes(player.playerId);
-
-  const head = probe.compId
-    ? `${probe.competitionName ?? 'kø'} ${probe.compId.slice(0, 8)}`
-    : 'ingen kø-kamp i historikken';
-
-  return [player.nickname, head, ...probe.results].join(SEP);
 }
 
 /**

@@ -414,11 +414,29 @@ ikke svare på for en almindelig kø-kamp, og det er målt i fire trin:
 4. **Der blev ikke prøvet at komme udenom.** Et kald der udgav sig for en
    browser ville måske være sluppet igennem. Det er ikke en vej vi går:
    botten melder sig som det den er, og et afslag er et svar.
+5. **Matchmaking har ingen kampliste.** Hubs og turneringer har begge en
+   `/matches?type=ongoing`; en matchmaking har ikke. Målt med `!csbotqueue`:
 
-Tilbage står: kampe i en **hub** eller en **turnering** (ESEA) kan findes,
-kø-kampe kan ikke. Derfor hedder kommandoen `!eseahold`, og `!hold` svarer
-`… er ikke i en FACEIT-kamp lige nu` og peger videre, frem for at vise noget
-fra sidste kamp som om det var den igangværende.
+   | Rute | Svar |
+   |---|---|
+   | `/matchmakings/{id}` | `200` — `id,name,game,region`, ingen kampe |
+   | `/matchmakings/{id}/matches` | `404` |
+   | `/matchmakings/{id}/matches?type=ongoing` | `404` |
+   | `/players/{id}/matches` | `404` |
+   | `/players/{id}/history?type=ongoing` | `200` — `FINISHED×5` |
+
+   Den sidste er den eneste der svarer, og den svarer forkert: `type` er en
+   ukendt parameter som FACEIT ignorerer, så det er den almindelige historik
+   igen. Havde parameteren virket, ville en igangværende kamp stå der.
+
+Fem dokumenterede ruter, fire 404'ere og en der svarer med noget andet end
+det der blev spurgt om. Tilbage står: kampe i en **hub** eller en
+**turnering** (ESEA) kan findes, kø-kampe kan ikke. Derfor hedder kommandoen `!eseahold`.
+
+`!hold` siger `… er ikke i en ESEA- eller hub-kamp lige nu │ kø-kampe kan
+botten ikke se`. Ordlyden er bevidst: botten *kan* ikke vide om spilleren er
+i en kø-kamp, så "er ikke i en FACEIT-kamp" ville påstå mere end den ved.
+Den viser heller ikke noget fra sidste kamp som om det var den igangværende.
 
 Den eneste kendte vej til kø-kampe er en rigtig browser med en indlogget
 FACEIT-session på serveren. Det ville kræve at dine kontocookies lå på

@@ -180,7 +180,8 @@ export function formatMultiKill({ aces, quads, triples }) {
  */
 export function formatLobby({ nickname, map, teams, status }) {
   if (!teams || teams.length === 0) {
-    return `${nickname} er ikke i en FACEIT-kamp lige nu`;
+    return `${nickname} er ikke i en ESEA- eller hub-kamp lige nu`
+      + `${SEP}kø-kampe kan botten ikke se`;
   }
 
   const parts = [];
@@ -342,8 +343,10 @@ export function formatTeam({ nickname, map, mates }) {
   // denne spiller lige nu", og en kø-kamp hører hverken til en hub eller en
   // turnering. Svaret peger derfor videre, så det ikke ligner en blindgyde.
   if (!mates || mates.length === 0) {
-    return `${nickname} er ikke i en FACEIT-kamp lige nu`
-      + `${SEP}prøv !eseahold for ESEA-truppen`;
+    // MÅLT: botten kan ikke se en kø-kamp overhovedet, så "er ikke i en kamp"
+    // ville påstå mere end den ved. Sig hvad den kan se, og hvad den ikke kan.
+    return `${nickname} er ikke i en ESEA- eller hub-kamp lige nu`
+      + `${SEP}kø-kampe kan botten ikke se${SEP}!eseahold viser truppen`;
   }
 
   const parts = [nickname];
