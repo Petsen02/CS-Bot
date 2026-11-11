@@ -709,8 +709,39 @@ export async function commandTeam({ channel, argument, viewer }) {
  * Holdet findes samme vej som !esea: gennem de turneringer spillerens egne
  * kampe hører til, fordi den kørende sæson ikke findes andre steder.
  */
+/**
+ * Om en kamp hører til et championship, altså ESEA.
+ *
+ * findLiveMatch leder også i hubs, og en hub-kamp hører ikke hjemme under
+ * !eseahold. Mangler feltet, siger vi nej: så viser kommandoen truppen, som
+ * den altid har gjort, frem for at påstå at en kamp er ESEA.
+ */
+function isChampionshipMatch(match) {
+  return String(match?.competition_type ?? '').toLowerCase() === 'championship';
+}
+
 export async function commandEseaTeam({ channel, argument, viewer }) {
   const { player } = await resolveTarget(channel, argument, viewer);
+
+  // Kører kampen, er det de fem der spiller der er interessante — ikke hele
+  // truppen. En trup kan være større end et hold, så under en kamp svarer
+  // listen ellers på et andet spørgsmål end det der blev stillet.
+  const live = await findLiveMatch(player.playerId).catch(() => null);
+
+  if (live && isChampionshipMatch(live)) {
+    const { own, others } = factionsOf(live, player.playerId);
+    const playing = (own?.people ?? []).map((p) => p.nickname).filter(Boolean);
+
+    if (playing.length > 0) {
+      return formatEseaTeam({
+        nickname: player.nickname,
+        teamName: own?.name ?? null,
+        members: playing,
+        opponent: others[0]?.name ?? null,
+        live: true,
+      });
+    }
+  }
 
   const [teams, played] = await Promise.all([
     getPlayerTeams(player.playerId),

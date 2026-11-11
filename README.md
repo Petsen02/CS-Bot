@@ -71,7 +71,7 @@ betjene flere streamere uden at de ser hinandens spillere.
 | `!lastgame [nick]` | Fuld statistiklinje — se nedenfor |
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
 | `!hold` / `!team` `[nick]` | `dewi │ Mirage │ vigg0 LVL10 · Rasmus LVL9 · Jonas LVL7` |
-| `!eseahold` / `!eseateam` `[nick]` | `vigg0 │ Elitemilijoet │ vigg0 · Rasmus · Jonas · Mikkel` |
+| `!eseahold` / `!eseateam` `[nick]` | `vigg0 │ Elitemilijoet │ vigg0 · Rasmus · Jonas · Mikkel`, under en kamp de spillende |
 | `!top [nick]` | `PETSEN LVL10 2347 elo │ DK #12 │ EU #418` |
 | `!maps [nick]` | `PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)` |
 | `!esea [nick]` | `vigg0 │ ESEA S59 Main │ Elitemilijoet 5-4 │ #25 af 76 │ 15 pts` |
@@ -85,8 +85,8 @@ betjene flere streamere uden at de ser hinandens spillere.
 udelades; man ved godt man er der, og pladsen er bedre brugt på de andre.
 
 Kun den igangværende kamp — en afsluttet kamps opstilling er støj når
-spørgsmålet er hvem der spiller nu. Kan den ingen kamp se, viser den
-ESEA-truppen i stedet, som `!eseahold` gør.
+spørgsmålet er hvem der spiller nu. Kan den ingen kamp se, siger den
+`er ikke i en ESEA-kamp lige nu` frem for at vise noget andet.
 
 **Spillerens historik rummer ikke en kamp der er i gang.** Det er målt: en
 kamp med status `ONGOING` stod slet ikke i deltagernes historik mens den kørte.
@@ -99,9 +99,8 @@ dokumenterede ruter er prøvet, fire svarer 404, og den femte svarer på et
 andet spørgsmål. FACEIT's egen web-rute afviser en server uden
 browser-session. DESIGN.md §14 har tallene.
 
-Derfor falder `!hold` tilbage til ESEA-truppen frem for at sende folk videre
-til en anden kommando. Så svarer den altid med noget brugbart, og `!eseahold`
-bliver stående for dem der vil have truppen direkte.
+Derfor svarer `!hold` kun på de kampe den kan se, og `!eseahold` står ved
+siden af for truppen.
 
 **Partyet selv kan ikke hentes.** Data API'et dækker spillere, kampe, hold,
 turneringer, ranglister og hubs — ingen parties. Og det interne web-API svarer
@@ -122,6 +121,17 @@ læse.
 `!eseahold` viser ESEA-holdets faste trup. Uden levels: holdlisten indeholder
 dem ikke, og et opslag pr. spiller ville koste fem kald for at pynte på en
 linje.
+
+Kører der en ESEA-kamp, skifter den til dem der **faktisk spiller**, med
+modstanderen i overskriften:
+
+```
+vigg0 │ LIVE: Elitemilijoet vs YoD eSports │ Rasmus · Jonas · Mikkel · Anders
+```
+
+En trup kan være større end et hold, så under en kamp svarer de to lister
+ikke på det samme. Kun championship-kampe tæller: en hub-kamp hører ikke
+under ESEA, og mangler feltet der afgør det, vises truppen som før.
 
 Alle kommandoer tager et FACEIT-nick, et SteamID64 eller et link til en
 Steam- eller FACEIT-profil. Uden argument svarer de om kanalens main.

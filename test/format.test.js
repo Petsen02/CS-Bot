@@ -340,3 +340,42 @@ test('formatSession viser dagens samlede elo når alt er målt', () => {
   assert.equal(message, 'vigg0: 3W 2L (+47 elo) 🟩🟩🟥🟩🟥');
   assert.ok(!message.includes('målt]'), 'ingen delvis-markering når alt er målt');
 });
+
+test('formatEseaTeam viser truppen når der ingen kamp er', async () => {
+  const { formatEseaTeam } = await import('../src/format.js');
+
+  assert.equal(
+    formatEseaTeam({
+      nickname: 'vigg0',
+      teamName: 'Elitemilijoet',
+      members: ['Rasmus', 'Jonas', 'Mikkel'],
+    }),
+    'vigg0 │ Elitemilijoet │ Rasmus · Jonas · Mikkel',
+  );
+});
+
+test('formatEseaTeam skifter til de spillende når kampen kører', async () => {
+  const { formatEseaTeam } = await import('../src/format.js');
+
+  const message = formatEseaTeam({
+    nickname: 'vigg0',
+    teamName: 'Elitemilijoet',
+    members: ['Rasmus', 'Jonas', 'Mikkel', 'Anders'],
+    opponent: 'YoD eSports',
+    live: true,
+  });
+
+  assert.ok(message.includes('LIVE: Elitemilijoet vs YoD eSports'), message);
+  assert.ok(message.includes('Rasmus · Jonas · Mikkel · Anders'), message);
+});
+
+test('formatEseaTeam klarer en live kamp uden modstandernavn', async () => {
+  const { formatEseaTeam } = await import('../src/format.js');
+
+  const message = formatEseaTeam({
+    nickname: 'vigg0', teamName: 'Elitemilijoet', members: ['Rasmus'], live: true,
+  });
+
+  assert.ok(message.includes('LIVE: Elitemilijoet'), message);
+  assert.ok(!message.includes('vs'), message);
+});
