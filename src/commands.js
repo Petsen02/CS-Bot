@@ -730,7 +730,16 @@ export async function commandEseaTeam({ channel, argument, viewer }) {
 
   if (live && isChampionshipMatch(live)) {
     const { own, others } = factionsOf(live, player.playerId);
-    const playing = (own?.people ?? []).map((p) => p.nickname).filter(Boolean);
+    const roster = own?.people ?? [];
+    const playing = roster.map((p) => p.nickname).filter(Boolean);
+
+    // Et navn der mangler ryger ud i stilhed, og så ser svaret bare ud til at
+    // have ét hold for lidt. Sig det i loggen, så det kan skelnes fra at
+    // FACEIT selv kun sendte fire.
+    if (playing.length < roster.length) {
+      logger.warn(`!eseahold: ${roster.length - playing.length} af ${roster.length} `
+        + `i ${own?.name ?? 'holdet'} mangler nickname i FACEIT's svar`);
+    }
 
     if (playing.length > 0) {
       return formatEseaTeam({
@@ -1169,6 +1178,22 @@ export async function commandLiveDebug({ channel, argument, viewer }) {
 
   // Hvor live-søgningen leder, og hvad den fandt. Uden det kan "ikke i en
   // kamp" ikke skelnes fra "fandt ikke kampen".
+  // Hvor mange der står i hver opstilling, og hvor mange af dem der har et
+  // navn. Fire navne i en 5v5 er enten FACEIT der sender fire, eller os der
+  // taber én — og de to ser ens ud udefra.
+  const liveMatch = await findLiveMatch(player.playerId).catch(() => null);
+  if (liveMatch) {
+    const { own, others } = factionsOf(liveMatch, player.playerId);
+    const describeSide = (side) => {
+      const people = side?.people ?? [];
+      const named = people.filter((p) => p.nickname).length;
+      return `${side?.name ?? '?'} ${named}/${people.length}`;
+    };
+
+    parts.push(`type: ${liveMatch.competition_type ?? '?'}`);
+    parts.push(`opstilling: ${[own, ...others].map(describeSide).join(' · ')}`);
+  }
+
   const search = await describeLiveSearch(player.playerId);
   parts.push(`kilder: ${search.hubs} hubs + ${search.competitions} turneringer`);
   parts.push(search.seen.length ? `ongoing: ${search.seen.join(', ')}` : 'ingen kilder');
