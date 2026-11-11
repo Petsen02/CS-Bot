@@ -389,14 +389,7 @@ export function readPosition(payload, playerId) {
  * næste gang — spillerens historik indeholder kun det der er spillet.
  */
 export function getChampionshipMatches(championshipId, { type = 'upcoming', limit = 20 } = {}) {
-  // Igangværende kampe hører i den korte cache, som hub-kampene gør. Lå de i
-  // den fem minutter lange, kunne !hold og !eseahold stå og sige "ingen kamp"
-  // i fem minutter efter at kampen var gået i gang — og det er netop det
-  // øjeblik kommandoerne findes til. Kommende kampe ændrer sig derimod
-  // sjældent, så !næsteesea bliver i den lange.
-  const cache = normalizeStatus(type) === 'ONGOING' ? liveCache : statsCache;
-
-  return cache.wrap(`champmatches:${type}:${championshipId}`, () =>
+  return statsCache.wrap(`champmatches:${type}:${championshipId}`, () =>
     request(`/championships/${encodeURIComponent(championshipId)}/matches`,
       { params: { type, limit } }));
 }

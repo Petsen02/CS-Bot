@@ -71,7 +71,7 @@ betjene flere streamere uden at de ser hinandens spillere.
 | `!lastgame [nick]` | Fuld statistiklinje — se nedenfor |
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
 | `!hold` / `!team` `[nick]` | `dewi │ Mirage │ vigg0 LVL10 · Rasmus LVL9 · Jonas LVL7` |
-| `!eseahold` / `!eseateam` `[nick]` | `vigg0 │ Elitemilijoet │ vigg0 · Rasmus · Jonas · Mikkel`, under en kamp de spillende |
+| `!eseahold` / `!eseateam` `[nick]` | `vigg0 │ Elitemilijoet │ vigg0 · Rasmus · Jonas · Mikkel` |
 | `!top [nick]` | `PETSEN LVL10 2347 elo │ DK #12 │ EU #418` |
 | `!maps [nick]` | `PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)` |
 | `!esea [nick]` | `vigg0 │ ESEA S59 Main │ Elitemilijoet 5-4 │ #25 af 76 │ 15 pts` |
@@ -121,17 +121,6 @@ læse.
 `!eseahold` viser ESEA-holdets faste trup. Uden levels: holdlisten indeholder
 dem ikke, og et opslag pr. spiller ville koste fem kald for at pynte på en
 linje.
-
-Kører der en ESEA-kamp, skifter den til dem der **faktisk spiller**, med
-modstanderen i overskriften:
-
-```
-vigg0 │ LIVE: Elitemilijoet vs YoD eSports │ Rasmus · Jonas · Mikkel · Anders
-```
-
-En trup kan være større end et hold, så under en kamp svarer de to lister
-ikke på det samme. Kun championship-kampe tæller: en hub-kamp hører ikke
-under ESEA, og mangler feltet der afgør det, vises truppen som før.
 
 Alle kommandoer tager et FACEIT-nick, et SteamID64 eller et link til en
 Steam- eller FACEIT-profil. Uden argument svarer de om kanalens main.

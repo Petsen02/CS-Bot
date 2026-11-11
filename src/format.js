@@ -385,22 +385,13 @@ export function formatTeam({ nickname, map, mates }) {
  *
  * ESEA-holdets faste trup. Ingen levels: holdlisten indeholder dem ikke, og et
  * opslag pr. spiller ville koste fem kald for at pynte på en linje.
- *
- * Kører en kamp, skifter linjen til dem der faktisk spiller, med modstanderen
- * i overskriften: "vigg0 │ LIVE: Elitemilijoet vs YoD eSports │ …". En trup
- * kan være større end et hold, så under en kamp er de to lister ikke ens.
  */
-export function formatEseaTeam({ nickname, teamName, members, opponent, live }) {
+export function formatEseaTeam({ nickname, teamName, members }) {
   if (!members || members.length === 0) {
     return `${nickname} er ikke på et ESEA-hold lige nu`;
   }
 
-  const name = teamName ?? 'ESEA-hold';
-  const head = live
-    ? `LIVE: ${name}${opponent ? ` vs ${opponent}` : ''}`
-    : name;
-
-  return [nickname, head, members.join(' · ')].join(SEP);
+  return [nickname, teamName ?? 'ESEA-hold', members.join(' · ')].join(SEP);
 }
 
 /** Hjælper til playerlist og lignende: en læsbar liste af nicks. */
