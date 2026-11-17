@@ -939,14 +939,21 @@ export async function commandEseaDebug({ channel, argument: raw }) {
     if (!ref) return 'Brug: !csbotesea matches <nick>';
 
     const player = await resolvePlayer(ref);
-    const competitions = (await recentCompetitions(player.playerId))
-      .filter((c) => c.id && c.type === 'championship');
+    const [competitions, teams] = await Promise.all([
+      recentCompetitions(player.playerId).then((list) =>
+        list.filter((c) => c.id && c.type === 'championship')),
+      getPlayerTeams(player.playerId).catch(() => []),
+    ]);
 
     if (competitions.length === 0) return `${player.nickname}: ingen turneringer`;
 
-    const lines = [];
+    // Holdets id'er med, så listen kun viser spillerens egne kampe. Uden dem
+    // drukner svaret i hele divisionens program.
+    const teamIds = teams.map((t) => t.teamId);
+    const lines = [`${player.nickname} (${teamIds.length} hold, ${competitions.length} turn.)`];
+
     for (const competition of competitions.slice(0, 2)) {
-      lines.push(`${competition.name}: ${await describeSchedule(competition)}`);
+      lines.push(`${competition.name}: ${await describeSchedule(competition, teamIds)}`);
     }
     return lines.join(SEP);
   }

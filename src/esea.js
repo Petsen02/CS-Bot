@@ -529,25 +529,46 @@ export async function findNextMatch(teamIds, competitions, now = Date.now()) {
 }
 
 /** Hvad kampprogram-ruten svarer, pr. type. Til fejlsøgning fra chatten. */
-export async function describeSchedule(competition) {
+export async function describeSchedule(competition, teamIds = []) {
   const { getChampionshipMatches } = await import('./faceit.js');
-  const out = [];
+  const wanted = new Set(teamIds.filter(Boolean));
 
-  for (const type of ['upcoming', 'ongoing', 'all']) {
+  // Kampene fra BEGGE lister slås sammen på match-id, så den samme kamp ikke
+  // tælles to gange — og så en kamp der kun står i den ene stadig kommer med.
+  const seen = new Map();
+  const counts = [];
+
+  for (const type of ['upcoming', 'all']) {
     try {
-      const payload = await getChampionshipMatches(competition.id, { type, limit: 20 });
+      const payload = await getChampionshipMatches(competition.id, { type, limit: 50 });
       const items = payload?.items ?? [];
-      const timed = items.filter((item) => {
+      counts.push(`${type} ${items.length}`);
+
+      for (const item of items) {
         const match = readScheduledMatch(item);
-        return match?.at && !DEAD.has(match.status);
-      });
-      out.push(`${type} ${items.length}${timed.length ? ` (${timed.length} m. tid)` : ''}`);
+        if (!match?.matchId) continue;
+        if (!seen.has(match.matchId)) seen.set(match.matchId, match);
+      }
     } catch (error) {
-      out.push(`${type} ${error.status ?? 'fejl'}`);
+      counts.push(`${type} ${error.status ?? 'fejl'}`);
     }
   }
 
-  return out.join(' ');
+  // Holdets egne kampe, tidligste først. Står kampen i aften ikke her, har
+  // API'et den ikke — og så kan ingen ændring i botten frem\u00e6lde den.
+  const mine = [...seen.values()]
+    .filter((m) => m.at && (wanted.size === 0 || m.teamIds.some((id) => wanted.has(id))))
+    .sort((a, b) => a.at - b.at)
+    .filter((m) => m.at > Date.now() - 24 * 3600_000)
+    .slice(0, 3)
+    .map((m) => {
+      const when = new Date(m.at);
+      const day = `${when.getUTCDate()}/${when.getUTCMonth() + 1}`;
+      const time = `${String(when.getUTCHours()).padStart(2, '0')}:${String(when.getUTCMinutes()).padStart(2, '0')}`;
+      return `${day} ${time}Z ${m.status ?? '?'}`;
+    });
+
+  return `${counts.join(' ')} → ${mine.join(' · ') || 'INGEN kommende for holdet'}`;
 }
 
 /** Læser et match-id ud af et rå id eller et faceit.com/...room/...-link. */
