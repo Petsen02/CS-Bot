@@ -461,6 +461,45 @@ export function readScheduledMatch(item) {
  * ikke en vilkårlig kamp fra programmet.
  */
 /**
+ * Alle kampe i en liste, side for side.
+ *
+ * MÅLT: `upcoming` svarede 50 og `all` svarede 50 — begge præcis på
+ * grænsen, altså "mindst 50". En division har flere kampe end det, og uden
+ * sideblading så botten kun den første side. En kamp i aften kunne ligge på
+ * side to og var dermed usynlig, mens en kamp om to dage stod på side et.
+ *
+ * Siderne hentes i halvtredser, fordi større sider er målt til at give 400.
+ */
+const PAGE = 50;
+
+async function pagedMatches(competitionId, type, maxPages) {
+  const { getChampionshipMatches } = await import('./faceit.js');
+  const out = [];
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const payload = await getChampionshipMatches(competitionId, {
+      type, limit: PAGE, offset: page * PAGE,
+    });
+
+    const items = payload?.items ?? [];
+    out.push(...items);
+
+    // En kort side er den sidste side.
+    if (items.length < PAGE) break;
+  }
+
+  return out;
+}
+
+/**
+ * Hvor mange sider hver liste er værd.
+ *
+ * `upcoming` og `ongoing` er dem svaret kommer fra, så de blades igennem.
+ * `all` er reserven og rummer mest spillede kampe, så den får mindre.
+ */
+const PAGES = { upcoming: 6, ongoing: 2, all: 2 };
+
+/**
  * Om en kamp stadig er "næste kamp".
  *
  * Skarpt ved starttidspunktet: kampen står i svaret indtil klokken slår, og
@@ -476,7 +515,6 @@ export function stillRelevant(at, now = Date.now()) {
 }
 
 export async function findNextMatch(teamIds, competitions, now = Date.now()) {
-  const { getChampionshipMatches } = await import('./faceit.js');
   const { logger } = await import('./logger.js');
 
   const wanted = new Set(teamIds.filter(Boolean));
@@ -501,9 +539,9 @@ export async function findNextMatch(teamIds, competitions, now = Date.now()) {
     // Listerne slås sammen og den tidligste vinder, så en kamp ikke kan
     // mangle fordi den har skiftet tilstand.
     for (const type of ['upcoming', 'ongoing', 'all']) {
-      let payload;
+      let items;
       try {
-        payload = await getChampionshipMatches(competition.id, { type, limit: 50 });
+        items = await pagedMatches(competition.id, type, PAGES[type]);
       } catch (error) {
         // Tidligere blev dette slugt i stilhed, og så lignede en afvist rute
         // en turnering uden kampe.
@@ -511,7 +549,7 @@ export async function findNextMatch(teamIds, competitions, now = Date.now()) {
         continue;
       }
 
-      for (const item of payload?.items ?? []) {
+      for (const item of items) {
         const match = readScheduledMatch(item);
         if (!match?.at || !stillRelevant(match.at, now)) continue;
         if (DEAD.has(match.status)) continue;
@@ -533,18 +571,16 @@ export async function findNextMatch(teamIds, competitions, now = Date.now()) {
 
 /** Hvad kampprogram-ruten svarer, pr. type. Til fejlsøgning fra chatten. */
 export async function describeSchedule(competition, teamIds = []) {
-  const { getChampionshipMatches } = await import('./faceit.js');
   const wanted = new Set(teamIds.filter(Boolean));
 
-  // Kampene fra BEGGE lister slås sammen på match-id, så den samme kamp ikke
+  // Kampene fra ALLE lister slås sammen på match-id, så den samme kamp ikke
   // tælles to gange — og så en kamp der kun står i den ene stadig kommer med.
   const seen = new Map();
   const counts = [];
 
   for (const type of ['upcoming', 'ongoing', 'all']) {
     try {
-      const payload = await getChampionshipMatches(competition.id, { type, limit: 50 });
-      const items = payload?.items ?? [];
+      const items = await pagedMatches(competition.id, type, PAGES[type]);
       counts.push(`${type} ${items.length}`);
 
       for (const item of items) {

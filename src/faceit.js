@@ -388,10 +388,13 @@ export function readPosition(payload, playerId) {
  * Kommende kampe er den eneste officielle kilde til hvornår der spilles
  * næste gang — spillerens historik indeholder kun det der er spillet.
  */
-export function getChampionshipMatches(championshipId, { type = 'upcoming', limit = 20 } = {}) {
-  return statsCache.wrap(`champmatches:${type}:${championshipId}`, () =>
+export function getChampionshipMatches(
+  championshipId,
+  { type = 'upcoming', limit = 20, offset = 0 } = {},
+) {
+  return statsCache.wrap(`champmatches:${type}:${offset}:${championshipId}`, () =>
     request(`/championships/${encodeURIComponent(championshipId)}/matches`,
-      { params: { type, limit } }));
+      { params: { type, limit, offset } }));
 }
 
 /**

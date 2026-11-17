@@ -113,6 +113,10 @@ tidspunkt, og hvor længe der er til.
 `!næsteesea` og `!næstepower` har begge to beskyttelser mod at dagens kamp
 forsvinder:
 
+- **Listerne blades igennem.** `upcoming` og `all` svarede begge præcis 50,
+  altså grænsen — vi så kun første side. En kamp samme aften kunne ligge på
+  side to mens en kamp om to dage stod på side et. Siderne hentes i
+  halvtredser, fordi større sider er målt til at give 400.
 - **Alle tre kamplister læses: `upcoming`, `ongoing` og `all`.** FACEIT
   flytter en kamp ud af `upcoming` når den gøres klar, og over i `ongoing`
   når den går i gang. Målt under en kamp: `upcoming 50`, `all 50` — begge på
