@@ -118,9 +118,9 @@ forsvinder:
   når den går i gang. Målt under en kamp: `upcoming 50`, `all 50` — begge på
   grænsen — og `ongoing 1`. Kampen lå kun i den liste botten ikke spurgte om,
   så `!næsteesea` svarede med næste uges kamp mens den aktuelle kørte.
-- **Tre timers slæk efter kampstart.** Et skarpt "efter nu" lod kampen
-  forsvinde i samme øjeblik den gik i gang. Færdigspillede kampe er filtreret
-  fra på status, så slækket kan ikke vække en gammel kamp.
+- **Kampen står indtil klokken slår.** Skiftet til næste kamp sker præcis
+  ved starttidspunktet — ikke før. En kamp der er gået i gang er ikke længere
+  den kommende.
 
 `!powerligaen` viser holdets placering, bygget som `!esea`: navn, division, hold og
 regnskab, placering, point. Antallet af hold i divisionen står ikke på siden,

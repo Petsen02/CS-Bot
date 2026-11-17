@@ -194,7 +194,8 @@ export function readNextMatch(payload, team, now = Date.now()) {
     if (!isA && !isB) continue;
 
     const at = Date.parse(date);
-    // Samme slæk som ESEA: en kamp der er gået i gang tæller stadig.
+    // Samme regel som ESEA: kampen står indtil klokken slår, og først dér
+    // skifter svaret til den næste.
     if (!stillRelevant(at, now)) continue;
 
     if (!best || at < best.at) {

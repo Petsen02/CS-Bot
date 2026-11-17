@@ -461,20 +461,18 @@ export function readScheduledMatch(item) {
  * ikke en vilkårlig kamp fra programmet.
  */
 /**
- * Hvor længe en kamp bliver stående efter sit starttidspunkt.
+ * Om en kamp stadig er "næste kamp".
  *
- * Et skarpt "efter nu" lod dagens kamp forsvinde i samme øjeblik den gik i
- * gang, og så hoppede !næsteesea videre til næste uges — netop den kamp
- * folk spørger om, var den eneste der manglede.
+ * Skarpt ved starttidspunktet: kampen står i svaret indtil klokken slår, og
+ * dér skifter kommandoen til den næste. En kamp der er gået i gang er ikke
+ * længere den kommende.
  *
- * Færdigspillede kampe er allerede filtreret fra på status, så slækket kan
- * ikke vække en gammel kamp til live; det holder kun en kamp der er i gang
- * synlig. Tre timer dækker en BO3.
+ * Det er derfor !næsteesea skal hente `ongoing` med: en kamp forlader
+ * `upcoming` FØR den starter, og uden den liste forsvandt den fra svaret
+ * allerede en halv time for tidligt.
  */
-const MATCH_SLACK_MS = 3 * 3600_000;
-
 export function stillRelevant(at, now = Date.now()) {
-  return Number.isFinite(at) && at > now - MATCH_SLACK_MS;
+  return Number.isFinite(at) && at > now;
 }
 
 export async function findNextMatch(teamIds, competitions, now = Date.now()) {

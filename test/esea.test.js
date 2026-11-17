@@ -310,19 +310,17 @@ test('parseMatchId afviser alt der ikke er et match-id', async () => {
   assert.equal(parseMatchId(null), null);
 });
 
-test('en kamp der er gået i gang bliver stående', async () => {
+test('kampen står indtil klokken slår, og skifter dér', async () => {
   const { stillRelevant } = await import('../src/esea.js');
-  const nu = Date.parse('2026-11-17T19:00:00Z');
+  const start = Date.parse('2026-11-17T19:30:00Z');   // 20:30 dansk tid
 
-  // Dagens kamp startede for en time siden og spilles stadig.
-  assert.equal(stillRelevant(Date.parse('2026-11-17T18:00:00Z'), nu), true);
+  // Et minut før: stadig næste kamp.
+  assert.equal(stillRelevant(start, start - 60_000), true);
 
-  // Om lidt: altid med.
-  assert.equal(stillRelevant(Date.parse('2026-11-17T20:00:00Z'), nu), true);
+  // Præcis ved starttidspunktet: ikke længere den kommende.
+  assert.equal(stillRelevant(start, start), false);
+  assert.equal(stillRelevant(start, start + 60_000), false);
 
-  // I går: væk. Slækket må ikke vække gamle kampe.
-  assert.equal(stillRelevant(Date.parse('2026-11-16T18:00:00Z'), nu), false);
-
-  assert.equal(stillRelevant(null, nu), false);
-  assert.equal(stillRelevant(NaN, nu), false);
+  assert.equal(stillRelevant(null, start), false);
+  assert.equal(stillRelevant(NaN, start), false);
 });
