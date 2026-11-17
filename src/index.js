@@ -30,6 +30,7 @@ import {
   commandEseaTeam,
   commandEsea,
   commandNextEsea,
+  commandNextPower,
   commandEseaDebug,
   commandLiveDebug,
   commandLeave,
@@ -79,6 +80,7 @@ const handlers = new Map([
   // Samme kommando under to navne: æ er besværligt på nogle tastaturer.
   ['næsteesea', { level: 'everyone', run: commandNextEsea }],
   ['nextesea', { level: 'everyone', run: commandNextEsea }],
+  ['næstepower', { level: 'everyone', run: commandNextPower }],
   ['eseahold', { level: 'everyone', run: commandEseaTeam }],
   ['eseateam', { level: 'everyone', run: commandEseaTeam }],
   [`${ADMIN}commands`, { level: 'everyone', run: commandCommands }],

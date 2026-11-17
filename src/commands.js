@@ -36,6 +36,7 @@ import {
   describeMatch,
   describeSchedule,
 } from './esea.js';
+import { findTeam, findNextMatch as findNextPowerMatch } from './power.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
   SEP,
@@ -52,6 +53,7 @@ import {
   formatTeam,
   formatEseaTeam,
   formatNextMatch,
+  formatNextPower,
   formatNicknames,
 } from './format.js';
 
@@ -1144,6 +1146,31 @@ export async function commandLiveDebug({ channel, argument, viewer }) {
   parts.push(`hende i en af dem: ${search.foundPlayer ? 'JA' : 'nej'}`);
 
   return parts.join(SEP);
+}
+
+/**
+ * Hvornår spilleren næste gang skal spille i Powerligaen.
+ *
+ * Powerligaen kører ikke på FACEIT, så den har intet med resten af botten at
+ * gøre — broen er SteamID'et. FACEIT oplyser det for hver spiller, og
+ * dust2.dk's statistikside er nøglet på netop det, så holdet kan slås direkte
+ * op uden at nogen skal taste noget.
+ */
+export async function commandNextPower({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
+
+  if (!player.steamId) {
+    return `${player.nickname}${SEP}intet SteamID på FACEIT-profilen`;
+  }
+
+  const team = await findTeam(player.steamId);
+  const match = team ? await findNextPowerMatch(team) : null;
+
+  return formatNextPower({
+    nickname: player.nickname,
+    team: team?.name ?? null,
+    match,
+  });
 }
 
 /**

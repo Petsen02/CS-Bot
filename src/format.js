@@ -394,6 +394,31 @@ export function formatEseaTeam({ nickname, teamName, members }) {
   return [nickname, teamName ?? 'ESEA-hold', members.join(' · ')].join(SEP);
 }
 
+/**
+ * "vigg0 │ CEPTER Divisionerne │ Eliten vs NXR DORADO │ 17/11/26 kl 17:00 │ om 1t"
+ *
+ * Powerligaens næste kamp, sat op felt for felt som formatNextMatch gør det
+ * for ESEA: navn, liga, de to hold, tidspunkt, og hvor længe der er til.
+ */
+export function formatNextPower({ nickname, team, match }) {
+  if (!match) return `${nickname} har ingen planlagte Powerliga-kampe`;
+
+  const parts = [nickname, truncate(match.league || 'Powerligaen', 50)];
+
+  if (team && match.opponent) parts.push(`${team} vs ${match.opponent}`);
+  else if (team) parts.push(team);
+  else if (match.opponent) parts.push(`mod ${match.opponent}`);
+
+  if (Number.isFinite(match.at)) {
+    parts.push(`${formatDate(config.timezone, match.at)} ${formatClock(config.timezone, match.at)}`);
+
+    const relative = formatRelative(match.at);
+    if (relative) parts.push(relative);
+  }
+
+  return parts.join(SEP);
+}
+
 /** Hjælper til playerlist og lignende: en læsbar liste af nicks. */
 export function formatNicknames(players) {
   if (players.length === 0) return 'listen er tom';

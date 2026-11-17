@@ -72,6 +72,7 @@ betjene flere streamere uden at de ser hinandens spillere.
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
 | `!hold` / `!team` `[nick]` | `dewi │ Mirage │ vigg0 LVL10 · Rasmus LVL9 · Jonas LVL7` |
 | `!eseahold` / `!eseateam` `[nick]` | `vigg0 │ Elitemilijoet │ vigg0 · Rasmus · Jonas · Mikkel` |
+| `!næstepower` `[nick]` | `vigg0 │ CEPTER Divisionerne │ Eliten vs NXR DORADO │ 17/11/26 kl 17:00 │ om 1t` |
 | `!top [nick]` | `PETSEN LVL10 2347 elo │ DK #12 │ EU #418` |
 | `!maps [nick]` | `PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)` |
 | `!esea [nick]` | `vigg0 │ ESEA S59 Main │ Elitemilijoet 5-4 │ #25 af 76 │ 15 pts` |
@@ -101,6 +102,30 @@ browser-session. DESIGN.md §14 har tallene.
 
 Derfor svarer `!hold` kun på de kampe den kan se, og `!eseahold` står ved
 siden af for truppen.
+
+## Powerligaen
+
+`!næstepower` viser hvornår spilleren næste gang skal spille i Powerligaen.
+Svaret er bygget felt for felt som `!næsteesea`: navn, liga, de to hold,
+tidspunkt, og hvor længe der er til.
+
+Ligaen kører ikke på FACEIT, så den har intet med resten af botten at gøre.
+**Broen er SteamID'et:** FACEIT oplyser det for hver spiller, og dust2.dk's
+statistikside er nøglet på netop det, så holdet slås direkte op. Ingen skal
+taste noget, og `!csbotaddmain` er nok til at kanalens egen spiller virker.
+
+Uden argument svarer den om kanalens main, som de øvrige kommandoer.
+
+**Det er ikke et API, og det er skrøbeligere end resten.** Ligaen har ingen
+offentlig grænseflade: deres `robots.txt` siger `Disallow: /api/`, så den vej
+er lukket for robotter og bruges ikke. Resten af siderne er udtrykkeligt
+åbne — `Allow: /` plus sitemaps — og de er server-renderede, så dataen ligger
+i selve siden. Men formatet er Next.js' interne, ikke en versioneret
+kontrakt, og et redesign kan slå det ud uden varsel. Derfor fejler
+`src/power.js` blødt: kommandoen svarer "ved ikke" frem for at vælte botten.
+
+Siderne er på 1-1,5 MB og caches i ti minutter, så trafikken bliver et par
+kald i timen uanset hvor mange der skriver kommandoen.
 
 **Partyet selv kan ikke hentes.** Data API'et dækker spillere, kampe, hold,
 turneringer, ranglister og hubs — ingen parties. Og det interne web-API svarer
