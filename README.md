@@ -72,7 +72,7 @@ betjene flere streamere uden at de ser hinandens spillere.
 | `!lobby [nick]` | Gennemsnitselo pr. hold i den igangværende kamp |
 | `!hold` / `!team` `[nick]` | `dewi │ Mirage │ vigg0 LVL10 · Rasmus LVL9 · Jonas LVL7` |
 | `!eseahold` / `!eseateam` `[nick]` | `vigg0 │ Elitemilijoet │ vigg0 · Rasmus · Jonas · Mikkel` |
-| `!power` `[nick]` | `vigg0 │ S33 CEPTER 4. Division C │ Eliten 17-1 │ #1 │ 51 pts` |
+| `!powerligaen` `[nick]` | `vigg0 │ S33 CEPTER 4. Division C │ Eliten 17-1 │ #1 │ 51 pts` |
 | `!næstepower` `[nick]` | `vigg0 │ CEPTER Divisionerne │ Eliten vs NXR DORADO │ 17/11/26 kl 17:00 │ om 1t` |
 | `!top [nick]` | `PETSEN LVL10 2347 elo │ DK #12 │ EU #418` |
 | `!maps [nick]` | `PETSEN │ bedst Nuke 68% (31) │ værst Ancient 38% (24)` |
@@ -110,7 +110,7 @@ siden af for truppen.
 Svaret er bygget felt for felt som `!næsteesea`: navn, liga, de to hold,
 tidspunkt, og hvor længe der er til.
 
-`!power` viser holdets placering, bygget som `!esea`: navn, division, hold og
+`!powerligaen` viser holdets placering, bygget som `!esea`: navn, division, hold og
 regnskab, placering, point. Antallet af hold i divisionen står ikke på siden,
 så der står `#1` og ikke `#1 af 10`.
 
