@@ -113,11 +113,11 @@ tidspunkt, og hvor længe der er til.
 `!næsteesea` og `!næstepower` har begge to beskyttelser mod at dagens kamp
 forsvinder:
 
-- **Begge kamplister læses.** FACEIT flytter en kamp ud af `upcoming` når den
-  gøres klar, typisk en halv time før start. Tidligere blev `all` sprunget
-  over så snart `upcoming` havde givet noget — og så blev torsdagens kamp
-  fundet mens dagens kl. 20:30 ikke blev. Nu slås de to sammen og den
-  tidligste vinder.
+- **Alle tre kamplister læses: `upcoming`, `ongoing` og `all`.** FACEIT
+  flytter en kamp ud af `upcoming` når den gøres klar, og over i `ongoing`
+  når den går i gang. Målt under en kamp: `upcoming 50`, `all 50` — begge på
+  grænsen — og `ongoing 1`. Kampen lå kun i den liste botten ikke spurgte om,
+  så `!næsteesea` svarede med næste uges kamp mens den aktuelle kørte.
 - **Tre timers slæk efter kampstart.** Et skarpt "efter nu" lod kampen
   forsvinde i samme øjeblik den gik i gang. Færdigspillede kampe er filtreret
   fra på status, så slækket kan ikke vække en gammel kamp.

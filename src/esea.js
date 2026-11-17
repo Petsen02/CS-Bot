@@ -495,9 +495,14 @@ export async function findNextMatch(teamIds, competitions, now = Date.now()) {
     // netop dette: torsdagens kamp blev fundet, dagens kamp kl. 20:30 lå kun
     // i "all", og kommandoen svarede torsdag.
     //
-    // De to lister slås sammen og den tidligste vinder, så en kamp ikke kan
+    // "ongoing" er den vigtigste af de tre. MÅLT: en kamp der var gået i
+    // gang stod som `ongoing 1`, mens `upcoming` og `all` begge returnerede
+    // 50 — altså grænsen — og kampen lå i ingen af dem. Uden denne liste
+    // svarede !næsteesea med næste uges kamp mens den aktuelle kørte.
+    //
+    // Listerne slås sammen og den tidligste vinder, så en kamp ikke kan
     // mangle fordi den har skiftet tilstand.
-    for (const type of ['upcoming', 'all']) {
+    for (const type of ['upcoming', 'ongoing', 'all']) {
       let payload;
       try {
         payload = await getChampionshipMatches(competition.id, { type, limit: 50 });
@@ -538,7 +543,7 @@ export async function describeSchedule(competition, teamIds = []) {
   const seen = new Map();
   const counts = [];
 
-  for (const type of ['upcoming', 'all']) {
+  for (const type of ['upcoming', 'ongoing', 'all']) {
     try {
       const payload = await getChampionshipMatches(competition.id, { type, limit: 50 });
       const items = payload?.items ?? [];
