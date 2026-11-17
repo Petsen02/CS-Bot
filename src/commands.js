@@ -36,7 +36,11 @@ import {
   describeMatch,
   describeSchedule,
 } from './esea.js';
-import { findTeam, findNextMatch as findNextPowerMatch } from './power.js';
+import {
+  findTeam,
+  findStanding as findPowerStanding,
+  findNextMatch as findNextPowerMatch,
+} from './power.js';
 import { localDateKey, startOfLocalDay } from './time.js';
 import {
   SEP,
@@ -54,6 +58,7 @@ import {
   formatEseaTeam,
   formatNextMatch,
   formatNextPower,
+  formatPower,
   formatNicknames,
 } from './format.js';
 
@@ -1146,6 +1151,25 @@ export async function commandLiveDebug({ channel, argument, viewer }) {
   parts.push(`hende i en af dem: ${search.foundPlayer ? 'JA' : 'nej'}`);
 
   return parts.join(SEP);
+}
+
+/**
+ * Holdets placering i Powerligaen.
+ *
+ * Samme bro som !næstepower: SteamID'et fra FACEIT slår holdet op, og
+ * holdets egen side bærer divisionen, placeringen og regnskabet.
+ */
+export async function commandPower({ channel, argument, viewer }) {
+  const { player } = await resolveTarget(channel, argument, viewer);
+
+  if (!player.steamId) {
+    return `${player.nickname}${SEP}intet SteamID på FACEIT-profilen`;
+  }
+
+  const team = await findTeam(player.steamId);
+  const standing = team ? await findPowerStanding(team) : null;
+
+  return formatPower({ nickname: player.nickname, team: team?.name ?? null, standing });
 }
 
 /**

@@ -52,6 +52,27 @@ export function readFlightPayload(html) {
   return out.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
 }
 
+async function rawPage(path) {
+  return pageCache.wrap(`raw:${path}`, async () => {
+    try {
+      const response = await fetch(`${BASE}${path}`, {
+        headers: { accept: 'text/html', 'user-agent': USER_AGENT },
+        signal: AbortSignal.timeout(20_000),
+      });
+
+      if (!response.ok) {
+        logger.warn(`powerligaen ${path}: ${response.status}`);
+        return '';
+      }
+
+      return await response.text();
+    } catch (error) {
+      logger.warn(`powerligaen ${path}: ${error.message}`);
+      return '';
+    }
+  });
+}
+
 async function page(path) {
   return pageCache.wrap(path, async () => {
     try {
@@ -97,7 +118,53 @@ export function readTeam(payload, steamId) {
 
   const id = record.match(/"team":\{[^}]*?"id":"([a-f0-9]{24})"/);
 
-  return { name: team[1], id: id?.[1] ?? null };
+  // Holdsiden bærer stillingen. Linket står med i samme objekt, så det
+  // behøver ikke gættes ud fra navnet.
+  const link = record.match(/"team":\{[^}]*?"link":"(\/[^"?]{3,120})/);
+
+  return { name: team[1], id: id?.[1] ?? null, link: link?.[1] ?? null };
+}
+
+/**
+ * Holdets placering, læst af holdsidens egen tekst.
+ *
+ * Siden skriver det samlet: "CEPTER 4. Division C · Sæson 33 — Eliten,
+ * 1. plads, 17 sejre · 1 nederlag · 51 point". Det hele hentes i ét greb,
+ * så et felt ikke kan samles op fra et andet holds blok.
+ *
+ * Antallet af hold i divisionen står ikke på siden, så `total` er null og
+ * svaret skriver "#1" frem for "#1 af 10".
+ *
+ * @returns {{rank: number, won: number, lost: number, points: number,
+ *            division: string|null, season: number|null}|null}
+ */
+export function readStanding(html) {
+  const text = String(html ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ');
+
+  // Placering og rekord står tæt sammen og hentes i ét greb, så et felt ikke
+  // kan samles op fra et andet holds blok.
+  const m = text.match(
+    /(\d{1,2})\.\s*plads\s+(\d{1,3})\s*sejre?\s*·\s*(\d{1,3})\s*nederlag\s*·\s*(\d{1,4})\s*point/,
+  );
+  if (!m) return null;
+
+  const [, rank, won, lost, points] = m;
+
+  // Divisionen navngives af ligaen selv og står foran sæsonen. Et grådigt
+  // udtryk her slæbte nabohold med, så de to familier nævnes ved navn.
+  const where = text.match(/(POWER Ligaen|CEPTER[^·|]{0,32}?)\s*·\s*S\u00e6son\s+(\d{1,3})/);
+
+  return {
+    division: where?.[1]?.trim() || null,
+    season: where ? Number(where[2]) : null,
+    rank: Number(rank),
+    won: Number(won),
+    lost: Number(lost),
+    points: Number(points),
+  };
 }
 
 /**
@@ -144,4 +211,13 @@ export async function findTeam(steamId) {
 /** Holdets næste kamp, eller null. */
 export async function findNextMatch(team) {
   return readNextMatch(await page('/kampe'), team);
+}
+
+/** Holdets placering i divisionen, eller null. */
+export async function findStanding(team) {
+  if (!team?.link) return null;
+
+  // Holdsidens stilling står i den renderede tekst, ikke i Next.js-dataen,
+  // så her bruges siden som den er.
+  return readStanding(await rawPage(team.link));
 }

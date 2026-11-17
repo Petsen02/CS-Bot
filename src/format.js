@@ -395,6 +395,35 @@ export function formatEseaTeam({ nickname, teamName, members }) {
 }
 
 /**
+ * "vigg0 │ S33 CEPTER 4. Division C │ Eliten 17-1 │ #1 │ 51 pts"
+ *
+ * Powerligaens stilling, sat op som formatEsea gør det for ESEA. Antallet af
+ * hold i divisionen står ikke på siden, så der står "#1" og ikke "#1 af 10".
+ */
+export function formatPower({ nickname, team, standing }) {
+  if (!standing) return `${nickname} er ikke i Powerligaen`;
+
+  const label = Number.isFinite(standing.season) && standing.division
+    ? `S${standing.season} ${standing.division}`
+    : truncate(standing.division || 'Powerligaen', 60);
+
+  const parts = [nickname, label];
+
+  const record = Number.isFinite(standing.won) && Number.isFinite(standing.lost)
+    ? `${standing.won}-${standing.lost}`
+    : null;
+
+  if (team && record) parts.push(`${team} ${record}`);
+  else if (team) parts.push(team);
+  else if (record) parts.push(record);
+
+  if (Number.isFinite(standing.rank)) parts.push(`#${standing.rank}`);
+  if (Number.isFinite(standing.points)) parts.push(`${standing.points} pts`);
+
+  return parts.join(SEP);
+}
+
+/**
  * "vigg0 │ CEPTER Divisionerne │ Eliten vs NXR DORADO │ 17/11/26 kl 17:00 │ om 1t"
  *
  * Powerligaens næste kamp, sat op felt for felt som formatNextMatch gør det

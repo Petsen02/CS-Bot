@@ -29,6 +29,7 @@ test('holdet slås op på SteamID', () => {
   assert.deepEqual(readTeam(payload, VIGG0), {
     name: 'Eliten',
     id: '6a9af3fa88b8dc0c3db43c81',
+    link: '/hold/cepter-4-division-c/6a9af3fa88b8dc0c3db43c81/eliten',
   });
 });
 
@@ -106,4 +107,59 @@ test('formatNextPower falder tilbage til "Powerligaen" uden liganavn', () => {
   });
 
   assert.ok(message.includes('Powerligaen'), message);
+});
+
+// --- stillingen, læst af holdsidens egen tekst ---
+
+import { readStanding } from '../src/power.js';
+import { formatPower } from '../src/format.js';
+
+const holdside = readFileSync(join(here, 'fixtures', 'powerhold.html'), 'utf8');
+
+test('stillingen læses af holdsiden', () => {
+  assert.deepEqual(readStanding(holdside), {
+    division: 'CEPTER 4. Division C',
+    season: 33,
+    rank: 1,
+    won: 17,
+    lost: 1,
+    points: 51,
+  });
+});
+
+test('et nabohold i tabellen samles ikke op', () => {
+  // Siden viser også de andre hold med deres egen "N. plads" og regnskab.
+  // Det første greb skal være holdets eget, ikke det næste i tabellen.
+  const standing = readStanding(holdside);
+
+  assert.equal(standing.rank, 1);
+  assert.notEqual(standing.points, 43);
+});
+
+test('en side uden stilling giver null', () => {
+  assert.equal(readStanding('<html><body>ingenting</body></html>'), null);
+  assert.equal(readStanding(null), null);
+});
+
+test('formatPower har samme felter som !esea', () => {
+  const message = formatPower({
+    nickname: 'vigg0',
+    team: 'Eliten',
+    standing: {
+      division: 'CEPTER 4. Division C', season: 33,
+      rank: 1, won: 17, lost: 1, points: 51,
+    },
+  });
+
+  const fields = message.split(' │ ');
+  assert.deepEqual(fields, [
+    'vigg0', 'S33 CEPTER 4. Division C', 'Eliten 17-1', '#1', '51 pts',
+  ]);
+});
+
+test('formatPower siger fra når spilleren ikke er i ligaen', () => {
+  assert.equal(
+    formatPower({ nickname: 'vigg0', team: null, standing: null }),
+    'vigg0 er ikke i Powerligaen',
+  );
 });
