@@ -460,6 +460,23 @@ export function readScheduledMatch(item) {
  * Returnerer den tidligste, så svaret er "hvornår spiller de næste gang" og
  * ikke en vilkårlig kamp fra programmet.
  */
+/**
+ * Hvor længe en kamp bliver stående efter sit starttidspunkt.
+ *
+ * Et skarpt "efter nu" lod dagens kamp forsvinde i samme øjeblik den gik i
+ * gang, og så hoppede !næsteesea videre til næste uges — netop den kamp
+ * folk spørger om, var den eneste der manglede.
+ *
+ * Færdigspillede kampe er allerede filtreret fra på status, så slækket kan
+ * ikke vække en gammel kamp til live; det holder kun en kamp der er i gang
+ * synlig. Tre timer dækker en BO3.
+ */
+const MATCH_SLACK_MS = 3 * 3600_000;
+
+export function stillRelevant(at, now = Date.now()) {
+  return Number.isFinite(at) && at > now - MATCH_SLACK_MS;
+}
+
 export async function findNextMatch(teamIds, competitions, now = Date.now()) {
   const { getChampionshipMatches } = await import('./faceit.js');
   const { logger } = await import('./logger.js');
@@ -470,10 +487,16 @@ export async function findNextMatch(teamIds, competitions, now = Date.now()) {
   let best = null;
 
   for (const competition of competitions) {
-    // "upcoming" er det rigtige spørgsmål, men hvis API'et ikke kender den
-    // værdi — eller ikke regner en SCHEDULED kamp for kommende — henter "all"
-    // det samme og filtreres her. En kamp der står på hjemmesiden skal ikke
-    // mangle fordi ét parameternavn ikke passer.
+    // BEGGE lister, altid.
+    //
+    // "upcoming" er det rigtige spørgsmål, men FACEIT flytter en kamp UD af
+    // den når den gøres klar — typisk en halv time før start. Tidligere blev
+    // "all" sprunget over så snart "upcoming" havde givet noget, og så skete
+    // netop dette: torsdagens kamp blev fundet, dagens kamp kl. 20:30 lå kun
+    // i "all", og kommandoen svarede torsdag.
+    //
+    // De to lister slås sammen og den tidligste vinder, så en kamp ikke kan
+    // mangle fordi den har skiftet tilstand.
     for (const type of ['upcoming', 'all']) {
       let payload;
       try {
@@ -485,15 +508,12 @@ export async function findNextMatch(teamIds, competitions, now = Date.now()) {
         continue;
       }
 
-      let foundHere = false;
-
       for (const item of payload?.items ?? []) {
         const match = readScheduledMatch(item);
-        if (!match?.at || match.at <= now) continue;
+        if (!match?.at || !stillRelevant(match.at, now)) continue;
         if (DEAD.has(match.status)) continue;
         if (!match.teamIds.some((id) => wanted.has(id))) continue;
 
-        foundHere = true;
         if (!best || match.at < best.at) {
           best = {
             ...match,
@@ -502,9 +522,6 @@ export async function findNextMatch(teamIds, competitions, now = Date.now()) {
           };
         }
       }
-
-      // Gav "upcoming" noget, er der ingen grund til også at hente "all".
-      if (foundHere) break;
     }
   }
 

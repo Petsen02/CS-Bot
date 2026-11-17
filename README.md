@@ -110,6 +110,18 @@ siden af for truppen.
 Svaret er bygget felt for felt som `!næsteesea`: navn, liga, de to hold,
 tidspunkt, og hvor længe der er til.
 
+`!næsteesea` og `!næstepower` har begge to beskyttelser mod at dagens kamp
+forsvinder:
+
+- **Begge kamplister læses.** FACEIT flytter en kamp ud af `upcoming` når den
+  gøres klar, typisk en halv time før start. Tidligere blev `all` sprunget
+  over så snart `upcoming` havde givet noget — og så blev torsdagens kamp
+  fundet mens dagens kl. 20:30 ikke blev. Nu slås de to sammen og den
+  tidligste vinder.
+- **Tre timers slæk efter kampstart.** Et skarpt "efter nu" lod kampen
+  forsvinde i samme øjeblik den gik i gang. Færdigspillede kampe er filtreret
+  fra på status, så slækket kan ikke vække en gammel kamp.
+
 `!powerligaen` viser holdets placering, bygget som `!esea`: navn, division, hold og
 regnskab, placering, point. Antallet af hold i divisionen står ikke på siden,
 så der står `#1` og ikke `#1 af 10`.

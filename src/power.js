@@ -1,4 +1,5 @@
 import { TtlCache } from './cache.js';
+import { stillRelevant } from './esea.js';
 import { logger } from './logger.js';
 
 /**
@@ -193,7 +194,8 @@ export function readNextMatch(payload, team, now = Date.now()) {
     if (!isA && !isB) continue;
 
     const at = Date.parse(date);
-    if (!Number.isFinite(at) || at < now - 3 * 3600_000) continue; // 3t slæk: en kamp i gang tæller stadig
+    // Samme slæk som ESEA: en kamp der er gået i gang tæller stadig.
+    if (!stillRelevant(at, now)) continue;
 
     if (!best || at < best.at) {
       best = { opponent: (isA ? b : a) || null, at, league: league || null };
